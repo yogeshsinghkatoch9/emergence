@@ -1,0 +1,582 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Flow — Fluid Dynamics</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;1,300&family=Inter:wght@300;400&display=swap');
+  *{margin:0;padding:0;box-sizing:border-box}
+  body{background:#060608;color:#fff;font-family:'Inter',sans-serif;overflow:hidden;height:100vh;width:100vw}
+  canvas{display:block;position:absolute;top:0;left:0}
+
+  #intro{position:fixed;inset:0;z-index:100;background:#060608;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;transition:opacity 1.2s}
+  #intro.hide{opacity:0;pointer-events:none}
+  #intro h1{font-family:'Cormorant Garamond',serif;font-size:clamp(48px,8vw,80px);font-weight:300;letter-spacing:12px;text-transform:lowercase;color:rgba(255,255,255,.8);margin-bottom:12px}
+  #intro p{font-size:13px;font-weight:300;color:rgba(255,255,255,.2);letter-spacing:3px;max-width:400px;line-height:1.8;margin-bottom:32px}
+  #intro button{background:none;border:1px solid rgba(255,255,255,.1);color:rgba(255,255,255,.5);font-family:'Cormorant Garamond',serif;font-size:18px;letter-spacing:6px;padding:14px 48px;border-radius:60px;cursor:pointer;transition:all .4s}
+  #intro button:hover{border-color:rgba(255,255,255,.3);color:rgba(255,255,255,.8);box-shadow:0 0 40px rgba(255,255,255,.05)}
+
+  #controls{position:fixed;top:20px;right:20px;z-index:10;display:none;flex-direction:column;gap:6px;align-items:flex-end}
+  .ctrl-row{display:flex;align-items:center;gap:8px}
+  .ctrl-label{font-size:9px;color:rgba(255,255,255,.15);letter-spacing:2px;text-transform:uppercase;min-width:60px;text-align:right}
+  .ctrl-slider{-webkit-appearance:none;appearance:none;width:100px;height:2px;background:rgba(255,255,255,.06);border-radius:2px;outline:none}
+  .ctrl-slider::-webkit-slider-thumb{-webkit-appearance:none;width:10px;height:10px;border-radius:50%;background:rgba(255,255,255,.2);cursor:pointer;transition:background .2s}
+  .ctrl-slider::-webkit-slider-thumb:hover{background:rgba(255,255,255,.4)}
+
+  .mode-bar{position:fixed;bottom:24px;left:50%;transform:translateX(-50%);z-index:10;display:none;gap:8px;align-items:center}
+  .mode-btn{background:rgba(255,255,255,.02);border:1px solid rgba(255,255,255,.06);color:rgba(255,255,255,.2);font-family:'Inter',sans-serif;font-size:10px;letter-spacing:2px;padding:8px 18px;border-radius:20px;cursor:pointer;transition:all .3s;text-transform:lowercase}
+  .mode-btn:hover{background:rgba(255,255,255,.05);color:rgba(255,255,255,.4)}
+  .mode-btn.active{border-color:rgba(255,200,100,.2);color:rgba(255,200,100,.4);background:rgba(255,200,100,.03)}
+
+  .info{position:fixed;top:20px;left:20px;z-index:10;display:none}
+  .info-title{font-family:'Cormorant Garamond',serif;font-size:32px;font-weight:300;color:rgba(255,255,255,.08);letter-spacing:6px}
+  .info-hint{font-size:10px;color:rgba(255,255,255,.08);letter-spacing:2px;margin-top:4px}
+
+  .btn-clear{position:fixed;top:20px;right:20px;z-index:10;display:none;background:rgba(255,255,255,.02);border:1px solid rgba(255,255,255,.05);color:rgba(255,255,255,.15);font-family:'Inter',sans-serif;font-size:9px;letter-spacing:2px;padding:6px 14px;border-radius:16px;cursor:pointer;transition:all .3s;text-transform:uppercase}
+  .btn-clear:hover{background:rgba(255,255,255,.05);color:rgba(255,255,255,.3)}
+</style>
+</head>
+<body>
+
+<div id="intro">
+  <h1>flow</h1>
+  <p>Paint with fluid. Drag to inject velocity and dye.<br>Watch turbulence emerge from motion.</p>
+  <button onclick="startFlow()">enter</button>
+</div>
+
+<canvas id="canvas"></canvas>
+
+<div class="info" id="info">
+  <div class="info-title">flow</div>
+  <div class="info-hint">drag to paint · scroll to resize brush</div>
+</div>
+
+<div id="controls">
+  <div class="ctrl-row">
+    <span class="ctrl-label">viscosity</span>
+    <input class="ctrl-slider" type="range" min="0" max="100" value="2" id="viscosity">
+  </div>
+  <div class="ctrl-row">
+    <span class="ctrl-label">diffusion</span>
+    <input class="ctrl-slider" type="range" min="0" max="100" value="5" id="diffusion">
+  </div>
+  <div class="ctrl-row">
+    <span class="ctrl-label">vorticity</span>
+    <input class="ctrl-slider" type="range" min="0" max="100" value="30" id="vorticity">
+  </div>
+  <div class="ctrl-row">
+    <span class="ctrl-label">pressure</span>
+    <input class="ctrl-slider" type="range" min="1" max="60" value="20" id="pressure">
+  </div>
+  <div class="ctrl-row">
+    <span class="ctrl-label">brush</span>
+    <input class="ctrl-slider" type="range" min="5" max="120" value="30" id="brushSize">
+  </div>
+  <button class="btn-clear" style="position:static;display:block;margin-top:8px" onclick="clearFluid()">clear</button>
+</div>
+
+<div class="mode-bar" id="modeBar">
+  <div class="mode-btn active" data-mode="smoke" onclick="setMode('smoke',this)">smoke</div>
+  <div class="mode-btn" data-mode="ink" onclick="setMode('ink',this)">ink</div>
+  <div class="mode-btn" data-mode="fire" onclick="setMode('fire',this)">fire</div>
+  <div class="mode-btn" data-mode="aurora" onclick="setMode('aurora',this)">aurora</div>
+  <div class="mode-btn" data-mode="neon" onclick="setMode('neon',this)">neon</div>
+  <div class="mode-btn" data-mode="ocean" onclick="setMode('ocean',this)">ocean</div>
+</div>
+
+<script>
+// ============================================================
+// Jos Stam "Stable Fluids" — GPU-free, pure JS on canvas
+// Grid-based Navier-Stokes with Gauss-Seidel pressure solve
+// ============================================================
+
+const canvas=document.getElementById('canvas');
+const gl=canvas.getContext('2d',{willReadFrequently:true});
+const dpr=Math.min(devicePixelRatio||1,2);
+
+// Simulation resolution (lower = faster, still looks great)
+let SIM_SCALE=4; // each sim cell = 4 screen pixels
+let N,M; // grid dimensions
+let W,H;
+
+// Fluid arrays (flat, row-major)
+let u,v,u0,v0;       // velocity
+let dr,dg,db;         // dye RGB
+let dr0,dg0,db0;      // dye previous
+let p,div;            // pressure, divergence
+
+// Params
+let viscosity=0.00002;
+let diffusion=0.00005;
+let vorticityStrength=0.03;
+let pressureIters=20;
+let brushRadius=30;
+let mode='smoke';
+let time=0;
+let running=false;
+
+// Mouse
+let mouseDown=false;
+let mx=0,my=0,pmx=0,pmy=0;
+let colorPhase=0;
+
+function idx(i,j){return i+j*(N+2)}
+
+function resize(){
+  W=innerWidth;H=innerHeight;
+  canvas.width=W*dpr;canvas.height=H*dpr;
+  canvas.style.width=W+'px';canvas.style.height=H+'px';
+  gl.scale(dpr,dpr);
+
+  N=Math.floor(W/SIM_SCALE);
+  M=Math.floor(H/SIM_SCALE);
+  const sz=(N+2)*(M+2);
+
+  u=new Float32Array(sz);v=new Float32Array(sz);
+  u0=new Float32Array(sz);v0=new Float32Array(sz);
+  dr=new Float32Array(sz);dg=new Float32Array(sz);db=new Float32Array(sz);
+  dr0=new Float32Array(sz);dg0=new Float32Array(sz);db0=new Float32Array(sz);
+  p=new Float32Array(sz);div=new Float32Array(sz);
+}
+
+// ---- Solver Steps ----
+
+function addSource(x,s,dt){
+  for(let i=0,n=x.length;i<n;i++)x[i]+=s[i]*dt;
+}
+
+function setBnd(b,x){
+  for(let i=1;i<=N;i++){
+    x[idx(i,0)]=b===2?-x[idx(i,1)]:x[idx(i,1)];
+    x[idx(i,M+1)]=b===2?-x[idx(i,M)]:x[idx(i,M)];
+  }
+  for(let j=1;j<=M;j++){
+    x[idx(0,j)]=b===1?-x[idx(1,j)]:x[idx(1,j)];
+    x[idx(N+1,j)]=b===1?-x[idx(N,j)]:x[idx(N,j)];
+  }
+  x[idx(0,0)]=.5*(x[idx(1,0)]+x[idx(0,1)]);
+  x[idx(0,M+1)]=.5*(x[idx(1,M+1)]+x[idx(0,M)]);
+  x[idx(N+1,0)]=.5*(x[idx(N,0)]+x[idx(N+1,1)]);
+  x[idx(N+1,M+1)]=.5*(x[idx(N,M+1)]+x[idx(N+1,M)]);
+}
+
+function linSolve(b,x,x0,a,c){
+  const invC=1/c;
+  for(let k=0;k<4;k++){
+    for(let j=1;j<=M;j++){
+      for(let i=1;i<=N;i++){
+        const id=idx(i,j);
+        x[id]=(x0[id]+a*(x[idx(i-1,j)]+x[idx(i+1,j)]+x[idx(i,j-1)]+x[idx(i,j+1)]))*invC;
+      }
+    }
+    setBnd(b,x);
+  }
+}
+
+function diffuse(b,x,x0,diff,dt){
+  const a=dt*diff*N*M;
+  linSolve(b,x,x0,a,1+4*a);
+}
+
+function advect(b,d,d0,uu,vv,dt){
+  const dt0x=dt*N;
+  const dt0y=dt*M;
+  for(let j=1;j<=M;j++){
+    for(let i=1;i<=N;i++){
+      const id=idx(i,j);
+      let x=i-dt0x*uu[id];
+      let y=j-dt0y*vv[id];
+      if(x<.5)x=.5;if(x>N+.5)x=N+.5;
+      if(y<.5)y=.5;if(y>M+.5)y=M+.5;
+      const i0=Math.floor(x),i1=i0+1;
+      const j0=Math.floor(y),j1=j0+1;
+      const s1=x-i0,s0=1-s1;
+      const t1=y-j0,t0=1-t1;
+      d[id]=s0*(t0*d0[idx(i0,j0)]+t1*d0[idx(i0,j1)])+s1*(t0*d0[idx(i1,j0)]+t1*d0[idx(i1,j1)]);
+    }
+  }
+  setBnd(b,d);
+}
+
+function project(){
+  const h=1.0/Math.max(N,M);
+  for(let j=1;j<=M;j++){
+    for(let i=1;i<=N;i++){
+      const id=idx(i,j);
+      div[id]=-.5*h*(u[idx(i+1,j)]-u[idx(i-1,j)]+v[idx(i,j+1)]-v[idx(i,j-1)]);
+      p[id]=0;
+    }
+  }
+  setBnd(0,div);setBnd(0,p);
+  linSolve(0,p,div,1,4);
+  const invH=.5/h;
+  // Use N-based scaling
+  for(let j=1;j<=M;j++){
+    for(let i=1;i<=N;i++){
+      const id=idx(i,j);
+      u[id]-=.5*(p[idx(i+1,j)]-p[idx(i-1,j)])*N;
+      v[id]-=.5*(p[idx(i,j+1)]-p[idx(i,j-1)])*M;
+    }
+  }
+  setBnd(1,u);setBnd(2,v);
+}
+
+function vorticityConfinement(dt){
+  const str=vorticityStrength;
+  // Compute curl
+  const curl=new Float32Array((N+2)*(M+2));
+  for(let j=1;j<=M;j++){
+    for(let i=1;i<=N;i++){
+      const id=idx(i,j);
+      curl[id]=(v[idx(i+1,j)]-v[idx(i-1,j)]-u[idx(i,j+1)]+u[idx(i,j-1)])*.5;
+    }
+  }
+  for(let j=2;j<M;j++){
+    for(let i=2;i<N;i++){
+      const id=idx(i,j);
+      const absCurl=Math.abs(curl[id]);
+      // Gradient of |curl|
+      let gx=(Math.abs(curl[idx(i+1,j)])-Math.abs(curl[idx(i-1,j)]))*.5;
+      let gy=(Math.abs(curl[idx(i,j+1)])-Math.abs(curl[idx(i,j-1)]))*.5;
+      const len=Math.sqrt(gx*gx+gy*gy)+1e-5;
+      gx/=len;gy/=len;
+      u[id]+=dt*str*(gy*curl[id]);
+      v[id]-=dt*str*(gx*curl[id]);
+    }
+  }
+}
+
+function velStep(dt){
+  addSource(u,u0,dt);
+  addSource(v,v0,dt);
+
+  vorticityConfinement(dt);
+
+  [u,u0]=[u0,u];diffuse(1,u,u0,viscosity,dt);
+  [v,v0]=[v0,v];diffuse(2,v,v0,viscosity,dt);
+  project();
+  [u,u0]=[u0,u];
+  [v,v0]=[v0,v];
+  advect(1,u,u0,u0,v0,dt);
+  advect(2,v,v0,u0,v0,dt);
+  project();
+}
+
+function densStep(dt){
+  addSource(dr,dr0,dt);addSource(dg,dg0,dt);addSource(db,db0,dt);
+  [dr,dr0]=[dr0,dr];diffuse(0,dr,dr0,diffusion,dt);
+  [dg,dg0]=[dg0,dg];diffuse(0,dg,dg0,diffusion,dt);
+  [db,db0]=[db0,db];diffuse(0,db,db0,diffusion,dt);
+  [dr,dr0]=[dr0,dr];advect(0,dr,dr0,u,v,dt);
+  [dg,dg0]=[dg0,dg];advect(0,dg,dg0,u,v,dt);
+  [db,db0]=[db0,db];advect(0,db,db0,u,v,dt);
+}
+
+// ---- Color modes ----
+function getDyeColor(phase){
+  switch(mode){
+    case'smoke':{
+      const h=phase*.15;
+      return hslToRgb(0,0,.7+Math.sin(phase)*.3);
+    }
+    case'ink':{
+      const h=(phase*.3)%1;
+      return hslToRgb(h,.7,.5);
+    }
+    case'fire':{
+      const t=(Math.sin(phase*.5)+1)*.5;
+      return[1,.2+t*.6,t*.15];
+    }
+    case'aurora':{
+      const h=(.3+Math.sin(phase*.2)*.15)%1;
+      return hslToRgb(h,.8,.5);
+    }
+    case'neon':{
+      const h=(phase*.4)%1;
+      return hslToRgb(h,1,.55);
+    }
+    case'ocean':{
+      const h=(.52+Math.sin(phase*.3)*.08)%1;
+      return hslToRgb(h,.6,.4);
+    }
+  }
+  return[1,1,1];
+}
+
+function hslToRgb(h,s,l){
+  if(s===0)return[l,l,l];
+  const hue2rgb=(p,q,t)=>{
+    if(t<0)t+=1;if(t>1)t-=1;
+    if(t<1/6)return p+(q-p)*6*t;
+    if(t<1/2)return q;
+    if(t<2/3)return p+(q-p)*(2/3-t)*6;
+    return p;
+  };
+  const q=l<.5?l*(1+s):l+s-l*s;
+  const pp=2*l-q;
+  return[hue2rgb(pp,q,h+1/3),hue2rgb(pp,q,h),hue2rgb(pp,q,h-1/3)];
+}
+
+// ---- Input ----
+function addForceAndDye(){
+  if(!mouseDown)return;
+  const simX=mx/SIM_SCALE;
+  const simY=my/SIM_SCALE;
+  const dvx=(mx-pmx)*8;
+  const dvy=(my-pmy)*8;
+  const r=brushRadius/SIM_SCALE;
+
+  colorPhase+=.06;
+  const[cr,cg,cb]=getDyeColor(colorPhase);
+  const dyeAmt=mode==='smoke'?0.6:0.8;
+
+  for(let j=Math.max(1,Math.floor(simY-r));j<=Math.min(M,Math.ceil(simY+r));j++){
+    for(let i=Math.max(1,Math.floor(simX-r));i<=Math.min(N,Math.ceil(simX+r));i++){
+      const dx=i-simX,dy=j-simY;
+      const d2=dx*dx+dy*dy;
+      if(d2>r*r)continue;
+      const w=Math.exp(-d2/(r*r*.25));
+      const id=idx(i,j);
+      u0[id]+=dvx*w;
+      v0[id]+=dvy*w;
+      dr0[id]+=cr*dyeAmt*w;
+      dg0[id]+=cg*dyeAmt*w;
+      db0[id]+=cb*dyeAmt*w;
+    }
+  }
+}
+
+// Fire: add buoyancy and continuous heat
+function fireStep(){
+  if(mode!=='fire')return;
+  // Buoyancy: hot stuff rises
+  for(let j=1;j<=M;j++){
+    for(let i=1;i<=N;i++){
+      const id=idx(i,j);
+      const heat=(dr[id]+dg[id]+db[id])/3;
+      v0[id]-=heat*0.15; // upward force
+      // cooling
+      dr[id]*=.995;dg[id]*=.99;db[id]*=.985;
+    }
+  }
+  // Continuous emitters at bottom
+  if(!mouseDown){
+    const emitters=5;
+    for(let e=0;e<emitters;e++){
+      const cx=N*(.15+e*.7/(emitters-1));
+      const cy=M-3;
+      const r=6;
+      const flicker=Math.sin(time*.1+e*2)*.5+.5;
+      for(let j=Math.max(1,Math.floor(cy-r));j<=Math.min(M,Math.ceil(cy+r));j++){
+        for(let i=Math.max(1,Math.floor(cx-r));i<=Math.min(N,Math.ceil(cx+r));i++){
+          const dx=i-cx,dy=j-cy;
+          const d2=dx*dx+dy*dy;
+          if(d2>r*r)continue;
+          const w=Math.exp(-d2/(r*r*.3))*flicker*.4;
+          const id=idx(i,j);
+          dr0[id]+=w*1;
+          dg0[id]+=w*.4;
+          db0[id]+=w*.05;
+          v0[id]-=w*4;
+          u0[id]+=(Math.sin(time*.05+i*.2))*w*1.5;
+        }
+      }
+    }
+  }
+}
+
+// Aurora: horizontal bands with gentle drift
+function auroraStep(){
+  if(mode!=='aurora')return;
+  if(mouseDown)return;
+  // Gentle emitters at top
+  for(let e=0;e<3;e++){
+    const cx=N*(.2+e*.3);
+    const cy=4+Math.sin(time*.02+e*3)*3;
+    const r=10;
+    const[cr,cg,cb]=getDyeColor(time*.01+e*2);
+    const flicker=Math.sin(time*.03+e*5)*.3+.5;
+    for(let j=Math.max(1,Math.floor(cy-r));j<=Math.min(M,Math.ceil(cy+r));j++){
+      for(let i=Math.max(1,Math.floor(cx-r));i<=Math.min(N,Math.ceil(cx+r));i++){
+        const dx=i-cx,dy=j-cy;
+        const d2=dx*dx+dy*dy;
+        if(d2>r*r)continue;
+        const w=Math.exp(-d2/(r*r*.3))*flicker*.15;
+        const id=idx(i,j);
+        dr0[id]+=cr*w;dg0[id]+=cg*w;db0[id]+=cb*w;
+        v0[id]+=w*2;
+        u0[id]+=Math.sin(time*.03+j*.1)*w*3;
+      }
+    }
+  }
+}
+
+canvas.addEventListener('mousedown',e=>{mouseDown=true;pmx=mx=e.clientX;pmy=my=e.clientY});
+canvas.addEventListener('mousemove',e=>{pmx=mx;pmy=my;mx=e.clientX;my=e.clientY});
+canvas.addEventListener('mouseup',()=>{mouseDown=false});
+canvas.addEventListener('mouseleave',()=>{mouseDown=false});
+
+// Touch
+canvas.addEventListener('touchstart',e=>{e.preventDefault();mouseDown=true;const t=e.touches[0];pmx=mx=t.clientX;pmy=my=t.clientY},{passive:false});
+canvas.addEventListener('touchmove',e=>{e.preventDefault();const t=e.touches[0];pmx=mx;pmy=my;mx=t.clientX;my=t.clientY},{passive:false});
+canvas.addEventListener('touchend',()=>{mouseDown=false});
+
+// Scroll = brush size
+addEventListener('wheel',e=>{
+  brushRadius=Math.max(5,Math.min(120,brushRadius-e.deltaY*.1));
+  document.getElementById('brushSize').value=brushRadius;
+},{passive:true});
+
+// Keyboard
+addEventListener('keydown',e=>{
+  if(e.key==='c')clearFluid();
+  if(e.key==='1')setMode('smoke',document.querySelector('[data-mode="smoke"]'));
+  if(e.key==='2')setMode('ink',document.querySelector('[data-mode="ink"]'));
+  if(e.key==='3')setMode('fire',document.querySelector('[data-mode="fire"]'));
+  if(e.key==='4')setMode('aurora',document.querySelector('[data-mode="aurora"]'));
+  if(e.key==='5')setMode('neon',document.querySelector('[data-mode="neon"]'));
+  if(e.key==='6')setMode('ocean',document.querySelector('[data-mode="ocean"]'));
+});
+
+// Controls
+document.getElementById('viscosity').addEventListener('input',e=>{
+  viscosity=Math.pow(e.target.value/100,3)*.001;
+});
+document.getElementById('diffusion').addEventListener('input',e=>{
+  diffusion=Math.pow(e.target.value/100,2)*.001;
+});
+document.getElementById('vorticity').addEventListener('input',e=>{
+  vorticityStrength=e.target.value/100*.1;
+});
+document.getElementById('pressure').addEventListener('input',e=>{
+  pressureIters=Math.floor(e.target.value);
+});
+document.getElementById('brushSize').addEventListener('input',e=>{
+  brushRadius=parseFloat(e.target.value);
+});
+
+function setMode(m,el){
+  mode=m;
+  document.querySelectorAll('.mode-btn').forEach(b=>b.classList.remove('active'));
+  if(el)el.classList.add('active');
+}
+
+function clearFluid(){
+  const sz=(N+2)*(M+2);
+  u.fill(0);v.fill(0);u0.fill(0);v0.fill(0);
+  dr.fill(0);dg.fill(0);db.fill(0);
+  dr0.fill(0);dg0.fill(0);db0.fill(0);
+  p.fill(0);div.fill(0);
+}
+
+// ---- Rendering ----
+let imgData;
+
+function render(){
+  // Create image data at sim resolution, then scale up
+  if(!imgData||imgData.width!==N+2||imgData.height!==M+2){
+    imgData=gl.createImageData(N+2,M+2);
+  }
+  const data=imgData.data;
+
+  for(let j=0;j<=M+1;j++){
+    for(let i=0;i<=N+1;i++){
+      const id=idx(i,j);
+      const px=(i+j*(N+2))*4;
+
+      let r=dr[id],g=dg[id],b=db[id];
+
+      // Bloom/glow: brighten high density
+      const brightness=Math.max(r,g,b);
+      if(brightness>.3){
+        const bloom=Math.pow(brightness,.5)*1.2;
+        r*=bloom;g*=bloom;b*=bloom;
+      }
+
+      // Background tint based on mode
+      let bgR=6/255,bgG=6/255,bgB=8/255;
+      if(mode==='fire'){bgR=.02;bgG=.008;bgB=.005}
+      else if(mode==='ocean'){bgR=.008;bgG=.012;bgB=.02}
+      else if(mode==='aurora'){bgR=.005;bgG=.01;bgB=.015}
+
+      data[px]=Math.min(255,Math.floor((bgR+r)*255));
+      data[px+1]=Math.min(255,Math.floor((bgG+g)*255));
+      data[px+2]=Math.min(255,Math.floor((bgB+b)*255));
+      data[px+3]=255;
+    }
+  }
+
+  // Draw at sim resolution then scale
+  gl.save();
+  gl.setTransform(1,0,0,1,0,0); // reset transform
+  gl.putImageData(imgData,0,0);
+
+  // Scale up with smoothing
+  gl.imageSmoothingEnabled=true;
+  gl.imageSmoothingQuality='high';
+  gl.drawImage(canvas,0,0,N+2,M+2,0,0,canvas.width,canvas.height);
+  gl.restore();
+}
+
+// ---- Main Loop ----
+function tick(){
+  if(!running){requestAnimationFrame(tick);return}
+  time++;
+  const dt=.1;
+
+  // Clear source arrays
+  u0.fill(0);v0.fill(0);
+  dr0.fill(0);dg0.fill(0);db0.fill(0);
+
+  // Input
+  addForceAndDye();
+  fireStep();
+  auroraStep();
+
+  // Decay dye slowly (prevents saturation)
+  const decay=mode==='fire'?0.998:0.9995;
+  for(let i=0;i<dr.length;i++){
+    dr[i]*=decay;dg[i]*=decay;db[i]*=decay;
+  }
+
+  // Solve
+  velStep(dt);
+  densStep(dt);
+
+  render();
+  requestAnimationFrame(tick);
+}
+
+function startFlow(){
+  document.getElementById('intro').classList.add('hide');
+  document.getElementById('info').style.display='block';
+  document.getElementById('controls').style.display='flex';
+  document.getElementById('modeBar').style.display='flex';
+  running=true;
+
+  // Auto-spawn some initial fluid so it's not empty
+  setTimeout(()=>{
+    const cx=N/2,cy=M/2;
+    for(let j=1;j<=M;j++){
+      for(let i=1;i<=N;i++){
+        const dx=i-cx,dy=j-cy;
+        const d=Math.sqrt(dx*dx+dy*dy);
+        if(d<N*.15){
+          const w=Math.exp(-d*d/(N*N*.005))*.3;
+          const id=idx(i,j);
+          const[cr,cg,cb]=getDyeColor(Math.atan2(dy,dx));
+          dr[id]+=cr*w;dg[id]+=cg*w;db[id]+=cb*w;
+          u[id]+=dy*.02;v[id]+=-dx*.02;
+        }
+      }
+    }
+  },200);
+}
+
+addEventListener('resize',()=>{resize();clearFluid()});
+resize();
+requestAnimationFrame(tick);
+</script>
+</body>
+</html>
