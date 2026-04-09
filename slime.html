@@ -1,0 +1,716 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Slime — Physarum Transport Networks</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;1,300&family=Inter:wght@300;400;500&display=swap');
+  *{margin:0;padding:0;box-sizing:border-box}
+  body{background:#050507;color:#fff;font-family:'Inter',sans-serif;overflow:hidden;height:100vh;width:100vw}
+  canvas{position:absolute;top:0;left:0;width:100vw;height:100vh}
+  #c{z-index:1;image-rendering:pixelated}
+  #overlay{z-index:2;pointer-events:none;image-rendering:auto}
+
+  #intro{position:fixed;inset:0;z-index:100;background:#050507;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;transition:opacity 1.2s;padding:20px}
+  #intro.hide{opacity:0;pointer-events:none}
+  #intro h1{font-family:'Cormorant Garamond',serif;font-size:clamp(42px,7vw,80px);font-weight:300;letter-spacing:12px;text-transform:lowercase;color:rgba(255,255,255,.8);margin-bottom:16px}
+  .isub{font-size:13px;font-weight:300;color:rgba(255,255,255,.12);letter-spacing:3px;max-width:520px;line-height:1.9;margin-bottom:8px}
+  .isub2{font-size:13px;font-weight:300;color:rgba(255,255,255,.05);letter-spacing:2px;max-width:420px;line-height:1.7;margin-bottom:32px;font-style:italic;font-family:'Cormorant Garamond',serif}
+  #intro button{background:none;border:1px solid rgba(255,255,255,.08);color:rgba(255,255,255,.4);font-family:'Cormorant Garamond',serif;font-size:18px;letter-spacing:8px;padding:16px 56px;border-radius:60px;cursor:pointer;transition:all .5s}
+  #intro button:hover{border-color:rgba(255,255,255,.25);color:rgba(255,255,255,.8);box-shadow:0 0 60px rgba(180,220,80,.06)}
+
+  .hud{position:fixed;z-index:20;padding:10px 14px;border-radius:12px;background:rgba(8,8,12,.88);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);border:1px solid rgba(255,255,255,.04);display:none}
+
+  #topL{top:16px;left:16px}
+  .ht{font-family:'Cormorant Garamond',serif;font-size:22px;font-weight:300;color:rgba(255,255,255,.12);letter-spacing:5px}
+  .hstat{font-size:8px;color:rgba(255,255,255,.08);letter-spacing:1px;margin-top:3px;font-family:monospace}
+
+  #topR{top:16px;right:16px;flex-direction:column;gap:7px;align-items:flex-end}
+  .cr{display:flex;align-items:center;gap:8px}
+  .cl{font-size:8px;color:rgba(255,255,255,.15);letter-spacing:1.5px;text-transform:uppercase;min-width:52px;text-align:right}
+  .cs{-webkit-appearance:none;appearance:none;width:80px;height:2px;background:rgba(255,255,255,.06);border-radius:2px;outline:none}
+  .cs::-webkit-slider-thumb{-webkit-appearance:none;width:10px;height:10px;border-radius:50%;background:rgba(255,255,255,.25);cursor:pointer}
+  .cv{font-size:7px;color:rgba(255,255,255,.10);min-width:28px;font-variant-numeric:tabular-nums;text-align:right}
+
+  #bottomUI{position:fixed;bottom:16px;left:50%;transform:translateX(-50%);z-index:20;display:none;flex-direction:column;align-items:center;gap:8px}
+
+  #toolBar{display:flex;gap:4px;padding:7px 10px;background:rgba(8,8,12,.88);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);border-radius:12px;border:1px solid rgba(255,255,255,.04)}
+  .tb{font-size:9px;letter-spacing:1.5px;color:rgba(255,255,255,.22);padding:7px 14px;border-radius:8px;cursor:pointer;transition:all .2s;text-transform:lowercase;font-family:'Inter',sans-serif;user-select:none}
+  .tb:hover{color:rgba(255,255,255,.45);background:rgba(255,255,255,.03)}
+  .tb.on{color:rgba(180,230,120,.65);background:rgba(180,230,120,.06);border:1px solid rgba(180,230,120,.12)}
+
+  #presetBar{display:flex;gap:4px;padding:6px 10px;background:rgba(8,8,12,.88);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);border-radius:10px;border:1px solid rgba(255,255,255,.04)}
+  .pb{font-size:8px;letter-spacing:1.5px;color:rgba(255,255,255,.18);padding:5px 12px;border-radius:6px;cursor:pointer;transition:all .2s;text-transform:lowercase;font-family:'Inter',sans-serif;user-select:none}
+  .pb:hover{color:rgba(255,255,255,.4);background:rgba(255,255,255,.03)}
+
+  #palettePicker{position:fixed;bottom:80px;right:16px;z-index:20;display:none;flex-direction:column;gap:3px;padding:8px 6px;background:rgba(8,8,12,.9);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);border-radius:10px;border:1px solid rgba(255,255,255,.04)}
+  .palSwatch{width:32px;height:14px;border-radius:4px;cursor:pointer;border:2px solid transparent;transition:all .15s}
+  .palSwatch:hover{transform:scale(1.1)}
+  .palSwatch.on{border-color:rgba(255,255,255,.4)}
+</style>
+</head>
+<body>
+
+<div id="intro">
+  <h1>slime</h1>
+  <div class="isub">
+    No brain. No neurons. No plan.<br><br>
+    Millions of agents. Three rules:<br>
+    move forward, deposit trail, turn toward scent.<br><br>
+    From this, it builds networks that rival<br>
+    human-designed highway systems.<br><br>
+    Click to place food. Watch it think.
+  </div>
+  <div class="isub2">"The map is not the territory, but the slime mold<br>doesn't know that." — after Korzybski</div>
+  <button onclick="start()">observe</button>
+</div>
+
+<canvas id="c"></canvas>
+<canvas id="overlay"></canvas>
+
+<div class="hud" id="topL">
+  <div class="ht">slime</div>
+  <div class="hstat" id="stats">0 agents</div>
+</div>
+
+<div class="hud" id="topR">
+  <div class="cr">
+    <span class="cl">agents</span>
+    <input class="cs" type="range" min="50000" max="800000" step="10000" value="300000" id="agentS">
+    <span class="cv" id="agentV">300k</span>
+  </div>
+  <div class="cr">
+    <span class="cl">sense dist</span>
+    <input class="cs" type="range" min="5" max="50" value="20" id="senseS">
+    <span class="cv" id="senseV">20</span>
+  </div>
+  <div class="cr">
+    <span class="cl">sense angle</span>
+    <input class="cs" type="range" min="10" max="80" value="30" id="angleS">
+    <span class="cv" id="angleV">30°</span>
+  </div>
+  <div class="cr">
+    <span class="cl">turn speed</span>
+    <input class="cs" type="range" min="10" max="90" value="45" id="turnS">
+    <span class="cv" id="turnV">45°</span>
+  </div>
+  <div class="cr">
+    <span class="cl">decay</span>
+    <input class="cs" type="range" min="80" max="99" value="95" id="decayS">
+    <span class="cv" id="decayV">0.95</span>
+  </div>
+  <div class="cr">
+    <span class="cl">deposit</span>
+    <input class="cs" type="range" min="1" max="30" value="5" id="depositS">
+    <span class="cv" id="depositV">5</span>
+  </div>
+</div>
+
+<div id="bottomUI">
+  <div id="toolBar">
+    <div class="tb on" onclick="setTool('food')" id="tool_food">food</div>
+    <div class="tb" onclick="setTool('wall')" id="tool_wall">wall</div>
+    <div class="tb" onclick="setTool('erase')" id="tool_erase">erase</div>
+    <div class="tb" onclick="setTool('spawn')" id="tool_spawn">spawn</div>
+    <div class="tb" onclick="togglePause()" id="pauseBtn">pause</div>
+    <div class="tb" onclick="resetSim()">reset</div>
+  </div>
+  <div id="presetBar">
+    <div class="pb" onclick="preset('ring')">ring</div>
+    <div class="pb" onclick="preset('network')">network</div>
+    <div class="pb" onclick="preset('maze')">maze</div>
+    <div class="pb" onclick="preset('tokyo')">tokyo</div>
+    <div class="pb" onclick="preset('galaxy')">galaxy</div>
+    <div class="pb" onclick="preset('explosion')">big bang</div>
+  </div>
+</div>
+
+<div id="palettePicker"></div>
+
+<script>
+// === CONFIG ===
+const SCALE = 2;
+let GW, GH;
+
+const canvas = document.getElementById('c');
+const ctx = canvas.getContext('2d');
+const overlay = document.getElementById('overlay');
+const octx = overlay.getContext('2d');
+
+// === SIMULATION STATE ===
+let trail;        // Float32 trail map
+let wallMap;      // Uint8 wall/food map (0=empty, 1=wall, 2=food)
+let agents = [];  // {x, y, angle}
+let started = false;
+let paused = false;
+let tool = 'food';
+let tick = 0;
+
+// Parameters
+let NUM_AGENTS = 300000;
+let SENSE_DIST = 20;
+let SENSE_ANGLE = 30 * Math.PI / 180;
+let TURN_SPEED = 45 * Math.PI / 180;
+let DECAY = 0.95;
+let DEPOSIT = 5;
+let DIFFUSE = 1; // blur radius
+let MOVE_SPEED = 1.2;
+
+// Color palettes
+const PALETTES = [
+  {name:'physarum',  bg:[5,5,7],    colors:[[30,50,20],[80,140,40],[160,220,60],[220,250,120],[255,255,200]], food:[255,200,50], wall:[40,40,50]},
+  {name:'ocean',     bg:[3,5,12],   colors:[[10,25,60],[20,60,120],[40,120,180],[80,180,220],[180,240,255]], food:[255,180,60], wall:[30,35,50]},
+  {name:'ember',     bg:[8,4,3],    colors:[[40,10,5],[120,30,8],[200,60,10],[255,120,20],[255,200,80]], food:[255,255,100], wall:[50,40,35]},
+  {name:'violet',    bg:[6,3,10],   colors:[[20,10,40],[60,20,100],[120,40,180],[180,80,240],[230,160,255]], food:[255,200,100], wall:[40,30,55]},
+  {name:'toxic',     bg:[3,6,4],    colors:[[8,30,12],[15,70,25],[30,140,50],[60,220,80],[140,255,160]], food:[255,220,60], wall:[35,45,35]},
+  {name:'mono',      bg:[5,5,5],    colors:[[25,25,25],[60,60,60],[120,120,120],[190,190,190],[245,245,245]], food:[255,200,80], wall:[40,40,40]},
+  {name:'coral',     bg:[8,4,5],    colors:[[40,15,20],[100,30,40],[180,60,70],[240,120,100],[255,200,170]], food:[255,240,100], wall:[50,35,40]},
+  {name:'aurora',    bg:[3,5,8],    colors:[[10,20,35],[20,80,60],[40,160,80],[100,220,120],[180,255,200]], food:[255,200,100], wall:[30,40,45]},
+];
+let curPalette = 0;
+
+function pal() { return PALETTES[curPalette]; }
+
+// === INIT ===
+function initSim() {
+  trail = new Float32Array(GW * GH);
+  wallMap = new Uint8Array(GW * GH);
+  agents = [];
+  tick = 0;
+  spawnAgents(NUM_AGENTS, 'center');
+}
+
+function spawnAgents(n, mode) {
+  const cx = GW / 2, cy = GH / 2;
+  for (let i = 0; i < n; i++) {
+    let x, y, angle;
+    if (mode === 'center') {
+      // Spawn in center cluster
+      const r = Math.random() * Math.min(GW, GH) * 0.05;
+      const a = Math.random() * Math.PI * 2;
+      x = cx + Math.cos(a) * r;
+      y = cy + Math.sin(a) * r;
+      angle = Math.random() * Math.PI * 2;
+    } else if (mode === 'ring') {
+      const r = Math.min(GW, GH) * 0.35;
+      const a = Math.random() * Math.PI * 2;
+      x = cx + Math.cos(a) * r;
+      y = cy + Math.sin(a) * r;
+      angle = a + Math.PI + (Math.random() - 0.5) * 0.5; // point inward
+    } else if (mode === 'random') {
+      x = Math.random() * GW;
+      y = Math.random() * GH;
+      angle = Math.random() * Math.PI * 2;
+    } else if (mode === 'edge') {
+      const side = Math.floor(Math.random() * 4);
+      if (side === 0) { x = Math.random() * GW; y = 2; angle = Math.PI / 2; }
+      else if (side === 1) { x = Math.random() * GW; y = GH - 3; angle = -Math.PI / 2; }
+      else if (side === 2) { x = 2; y = Math.random() * GH; angle = 0; }
+      else { x = GW - 3; y = Math.random() * GH; angle = Math.PI; }
+      angle += (Math.random() - 0.5) * 1.0;
+    }
+    agents.push({ x, y, angle });
+  }
+}
+
+// === SIMULATION ===
+function sense(agent, angleOffset) {
+  const a = agent.angle + angleOffset;
+  const sx = Math.round(agent.x + Math.cos(a) * SENSE_DIST);
+  const sy = Math.round(agent.y + Math.sin(a) * SENSE_DIST);
+  if (sx < 0 || sx >= GW || sy < 0 || sy >= GH) return 0;
+  const i = sy * GW + sx;
+  // Walls repel, food attracts strongly
+  if (wallMap[i] === 1) return -1000;
+  let v = trail[i];
+  if (wallMap[i] === 2) v += 50; // food attraction
+  return v;
+}
+
+function simulate() {
+  tick++;
+  const len = agents.length;
+
+  for (let a = 0; a < len; a++) {
+    const ag = agents[a];
+
+    // Sense three directions
+    const fwd = sense(ag, 0);
+    const left = sense(ag, -SENSE_ANGLE);
+    const right = sense(ag, SENSE_ANGLE);
+
+    // Turn decision
+    if (fwd >= left && fwd >= right) {
+      // Keep going (slight random wobble)
+      ag.angle += (Math.random() - 0.5) * 0.1;
+    } else if (fwd < left && fwd < right) {
+      // Both sides stronger — random turn
+      ag.angle += (Math.random() < 0.5 ? -1 : 1) * TURN_SPEED;
+    } else if (left > right) {
+      ag.angle -= TURN_SPEED;
+    } else {
+      ag.angle += TURN_SPEED;
+    }
+
+    // Move
+    const nx = ag.x + Math.cos(ag.angle) * MOVE_SPEED;
+    const ny = ag.y + Math.sin(ag.angle) * MOVE_SPEED;
+
+    // Boundary + wall check
+    const ix = Math.round(nx), iy = Math.round(ny);
+    if (ix < 0 || ix >= GW || iy < 0 || iy >= GH || wallMap[iy * GW + ix] === 1) {
+      // Bounce: random new direction
+      ag.angle = Math.random() * Math.PI * 2;
+    } else {
+      ag.x = nx;
+      ag.y = ny;
+      // Deposit trail
+      const idx = iy * GW + ix;
+      trail[idx] = Math.min(trail[idx] + DEPOSIT, 255);
+    }
+  }
+
+  // Diffuse + decay trail
+  diffuseDecay();
+}
+
+function diffuseDecay() {
+  const newTrail = new Float32Array(GW * GH);
+  for (let y = 1; y < GH - 1; y++) {
+    for (let x = 1; x < GW - 1; x++) {
+      const i = y * GW + x;
+      if (wallMap[i] === 1) continue;
+      // 3x3 blur
+      let sum = 0;
+      for (let dy = -1; dy <= 1; dy++) {
+        for (let dx = -1; dx <= 1; dx++) {
+          const ni = (y + dy) * GW + (x + dx);
+          if (wallMap[ni] !== 1) sum += trail[ni];
+        }
+      }
+      newTrail[i] = (sum / 9) * DECAY;
+      // Food sources continuously emit trail
+      if (wallMap[i] === 2) newTrail[i] = Math.max(newTrail[i], 30);
+    }
+  }
+  trail = newTrail;
+}
+
+// === RENDERING ===
+function draw() {
+  const img = ctx.createImageData(GW, GH);
+  const d = img.data;
+  const p = pal();
+  const bg = p.bg;
+  const cols = p.colors;
+  const foodCol = p.food;
+  const wallCol = p.wall;
+
+  for (let y = 0; y < GH; y++) {
+    for (let x = 0; x < GW; x++) {
+      const i = y * GW + x;
+      const pi = i * 4;
+      const w = wallMap[i];
+
+      if (w === 1) {
+        // Wall
+        d[pi] = wallCol[0]; d[pi + 1] = wallCol[1]; d[pi + 2] = wallCol[2]; d[pi + 3] = 255;
+        continue;
+      }
+
+      if (w === 2) {
+        // Food — pulsing glow
+        const pulse = Math.sin(tick * 0.08 + x * 0.1) * 0.15 + 0.85;
+        d[pi] = foodCol[0] * pulse | 0;
+        d[pi + 1] = foodCol[1] * pulse | 0;
+        d[pi + 2] = foodCol[2] * pulse | 0;
+        d[pi + 3] = 255;
+        continue;
+      }
+
+      const v = trail[i];
+      if (v < 0.5) {
+        d[pi] = bg[0]; d[pi + 1] = bg[1]; d[pi + 2] = bg[2]; d[pi + 3] = 255;
+        continue;
+      }
+
+      // Map trail intensity to color palette
+      const t = Math.min(v / 60, 1); // normalize
+      const ci = t * (cols.length - 1);
+      const lo = Math.floor(ci);
+      const hi = Math.min(lo + 1, cols.length - 1);
+      const f = ci - lo;
+
+      const r = cols[lo][0] + (cols[hi][0] - cols[lo][0]) * f;
+      const g = cols[lo][1] + (cols[hi][1] - cols[lo][1]) * f;
+      const b = cols[lo][2] + (cols[hi][2] - cols[lo][2]) * f;
+
+      d[pi] = Math.min(255, r | 0);
+      d[pi + 1] = Math.min(255, g | 0);
+      d[pi + 2] = Math.min(255, b | 0);
+      d[pi + 3] = 255;
+    }
+  }
+
+  ctx.putImageData(img, 0, 0);
+}
+
+// === INTERACTION ===
+let mouseDown = false;
+let lastPx = -1, lastPy = -1;
+const brushSize = 8;
+
+function paintAt(screenX, screenY) {
+  const gx = Math.floor(screenX / SCALE);
+  const gy = Math.floor(screenY / SCALE);
+
+  // Interpolate from last position
+  if (lastPx >= 0) {
+    const dx = gx - lastPx, dy = gy - lastPy;
+    const steps = Math.max(Math.abs(dx), Math.abs(dy));
+    for (let s = 0; s <= steps; s++) {
+      const t = steps > 0 ? s / steps : 0;
+      const px = Math.round(lastPx + dx * t);
+      const py = Math.round(lastPy + dy * t);
+      applyBrush(px, py);
+    }
+  } else {
+    applyBrush(gx, gy);
+  }
+  lastPx = gx; lastPy = gy;
+}
+
+function applyBrush(gx, gy) {
+  const r = tool === 'food' ? brushSize : tool === 'wall' ? brushSize : tool === 'spawn' ? brushSize * 2 : brushSize;
+  for (let dy = -r; dy <= r; dy++) {
+    for (let dx = -r; dx <= r; dx++) {
+      if (dx * dx + dy * dy > r * r) continue;
+      const px = gx + dx, py = gy + dy;
+      if (px < 0 || px >= GW || py < 0 || py >= GH) continue;
+      const i = py * GW + px;
+
+      if (tool === 'food') {
+        wallMap[i] = 2;
+        trail[i] = 50;
+      } else if (tool === 'wall') {
+        wallMap[i] = 1;
+        trail[i] = 0;
+      } else if (tool === 'erase') {
+        wallMap[i] = 0;
+        trail[i] = 0;
+      } else if (tool === 'spawn') {
+        if (Math.random() < 0.3) {
+          agents.push({
+            x: px + Math.random(),
+            y: py + Math.random(),
+            angle: Math.random() * Math.PI * 2
+          });
+        }
+      }
+    }
+  }
+}
+
+canvas.addEventListener('mousedown', e => {
+  mouseDown = true; lastPx = -1; lastPy = -1;
+  paintAt(e.clientX, e.clientY);
+});
+canvas.addEventListener('mousemove', e => {
+  if (mouseDown) paintAt(e.clientX, e.clientY);
+});
+canvas.addEventListener('mouseup', () => { mouseDown = false; lastPx = -1; });
+canvas.addEventListener('mouseleave', () => { mouseDown = false; lastPx = -1; });
+
+canvas.addEventListener('touchstart', e => {
+  e.preventDefault(); mouseDown = true; lastPx = -1; lastPy = -1;
+  paintAt(e.touches[0].clientX, e.touches[0].clientY);
+}, { passive: false });
+canvas.addEventListener('touchmove', e => {
+  e.preventDefault();
+  if (mouseDown) paintAt(e.touches[0].clientX, e.touches[0].clientY);
+}, { passive: false });
+canvas.addEventListener('touchend', () => { mouseDown = false; lastPx = -1; });
+
+// === TOOLS ===
+function setTool(t) {
+  tool = t;
+  document.querySelectorAll('#toolBar .tb').forEach(b => {
+    if (b.id && b.id.startsWith('tool_')) {
+      b.classList.toggle('on', b.id === 'tool_' + t);
+    }
+  });
+}
+
+function togglePause() {
+  paused = !paused;
+  const btn = document.getElementById('pauseBtn');
+  btn.textContent = paused ? 'play' : 'pause';
+  btn.classList.toggle('on', paused);
+}
+
+// === PRESETS ===
+function resetSim() {
+  initSim();
+}
+
+function preset(name) {
+  initSim();
+
+  if (name === 'ring') {
+    agents = [];
+    spawnAgents(NUM_AGENTS, 'ring');
+    // Food at center
+    placeFood(GW / 2, GH / 2, 12);
+  }
+
+  else if (name === 'network') {
+    agents = [];
+    spawnAgents(NUM_AGENTS, 'random');
+    // Multiple food sources
+    const pts = 7;
+    for (let i = 0; i < pts; i++) {
+      const a = (i / pts) * Math.PI * 2;
+      const r = Math.min(GW, GH) * 0.3;
+      placeFood(GW / 2 + Math.cos(a) * r, GH / 2 + Math.sin(a) * r, 10);
+    }
+    placeFood(GW / 2, GH / 2, 10);
+  }
+
+  else if (name === 'maze') {
+    agents = [];
+    // Build maze walls
+    const cellW = 20, cellH = 20;
+    const cols = Math.floor(GW / cellW);
+    const rows = Math.floor(GH / cellH);
+    // Simple recursive division maze
+    buildMazeWalls(0, 0, GW, GH, true, 0);
+    // Food at two corners
+    placeFood(cellW * 2, cellH * 2, 8);
+    placeFood(GW - cellW * 2, GH - cellH * 2, 8);
+    // Spawn agents near start
+    for (let i = 0; i < NUM_AGENTS; i++) {
+      agents.push({
+        x: cellW * 2 + (Math.random() - 0.5) * 15,
+        y: cellH * 2 + (Math.random() - 0.5) * 15,
+        angle: Math.random() * Math.PI * 2
+      });
+    }
+  }
+
+  else if (name === 'tokyo') {
+    agents = [];
+    spawnAgents(NUM_AGENTS, 'random');
+    // Tokyo-inspired station layout (simplified)
+    const stations = [
+      [0.5, 0.5], [0.3, 0.3], [0.7, 0.3], [0.3, 0.7], [0.7, 0.7],
+      [0.5, 0.25], [0.5, 0.75], [0.25, 0.5], [0.75, 0.5],
+      [0.15, 0.15], [0.85, 0.15], [0.15, 0.85], [0.85, 0.85],
+      [0.4, 0.4], [0.6, 0.4], [0.4, 0.6], [0.6, 0.6],
+    ];
+    stations.forEach(([fx, fy]) => {
+      placeFood(GW * fx, GH * fy, 6 + Math.random() * 4);
+    });
+  }
+
+  else if (name === 'galaxy') {
+    agents = [];
+    const cx = GW / 2, cy = GH / 2;
+    // Spiral arms
+    for (let i = 0; i < NUM_AGENTS; i++) {
+      const arm = Math.floor(Math.random() * 3);
+      const d = Math.random() * Math.min(GW, GH) * 0.4;
+      const baseA = (arm / 3) * Math.PI * 2;
+      const spiral = baseA + d * 0.008;
+      const spread = d * 0.1;
+      const x = cx + Math.cos(spiral) * d + (Math.random() - 0.5) * spread;
+      const y = cy + Math.sin(spiral) * d + (Math.random() - 0.5) * spread;
+      agents.push({ x, y, angle: spiral + Math.PI / 2 + (Math.random() - 0.5) * 0.5 });
+    }
+    placeFood(cx, cy, 15);
+  }
+
+  else if (name === 'explosion') {
+    agents = [];
+    const cx = GW / 2, cy = GH / 2;
+    // All agents at center, facing outward
+    for (let i = 0; i < NUM_AGENTS; i++) {
+      const a = Math.random() * Math.PI * 2;
+      const r = Math.random() * 3;
+      agents.push({
+        x: cx + Math.cos(a) * r,
+        y: cy + Math.sin(a) * r,
+        angle: a + (Math.random() - 0.5) * 0.3
+      });
+    }
+  }
+}
+
+function placeFood(cx, cy, r) {
+  const ix = Math.round(cx), iy = Math.round(cy);
+  for (let dy = -r; dy <= r; dy++) {
+    for (let dx = -r; dx <= r; dx++) {
+      if (dx * dx + dy * dy > r * r) continue;
+      const px = ix + dx, py = iy + dy;
+      if (px >= 0 && px < GW && py >= 0 && py < GH) {
+        wallMap[py * GW + px] = 2;
+        trail[py * GW + px] = 50;
+      }
+    }
+  }
+}
+
+function buildMazeWalls(x, y, w, h, horiz, depth) {
+  if (depth > 6 || w < 15 || h < 15) return;
+
+  if (horiz) {
+    const wy = y + Math.floor(h * 0.3 + Math.random() * h * 0.4);
+    const gap = x + Math.floor(Math.random() * (w - 8)) + 4;
+    for (let px = x; px < x + w; px++) {
+      if (Math.abs(px - gap) > 4) {
+        for (let t = 0; t < 2; t++) {
+          if (wy + t >= 0 && wy + t < GH && px >= 0 && px < GW)
+            wallMap[(wy + t) * GW + px] = 1;
+        }
+      }
+    }
+    buildMazeWalls(x, y, w, wy - y, false, depth + 1);
+    buildMazeWalls(x, wy + 2, w, h - (wy - y) - 2, false, depth + 1);
+  } else {
+    const wx = x + Math.floor(w * 0.3 + Math.random() * w * 0.4);
+    const gap = y + Math.floor(Math.random() * (h - 8)) + 4;
+    for (let py = y; py < y + h; py++) {
+      if (Math.abs(py - gap) > 4) {
+        for (let t = 0; t < 2; t++) {
+          if (py >= 0 && py < GH && wx + t >= 0 && wx + t < GW)
+            wallMap[py * GW + (wx + t)] = 1;
+        }
+      }
+    }
+    buildMazeWalls(x, y, wx - x, h, true, depth + 1);
+    buildMazeWalls(wx + 2, y, w - (wx - x) - 2, h, true, depth + 1);
+  }
+}
+
+// === PALETTE PICKER ===
+function buildPalettePicker() {
+  const pick = document.getElementById('palettePicker');
+  pick.innerHTML = '';
+  PALETTES.forEach((p, i) => {
+    const sw = document.createElement('div');
+    sw.className = 'palSwatch' + (i === curPalette ? ' on' : '');
+    // Gradient from palette colors
+    const c = p.colors;
+    sw.style.background = `linear-gradient(90deg, rgb(${c[0]}), rgb(${c[2]}), rgb(${c[4]}))`;
+    sw.title = p.name;
+    sw.onclick = () => {
+      curPalette = i;
+      document.querySelectorAll('.palSwatch').forEach((s, j) => s.classList.toggle('on', j === i));
+    };
+    pick.appendChild(sw);
+  });
+}
+
+// === SLIDERS ===
+document.getElementById('agentS').addEventListener('input', e => {
+  NUM_AGENTS = parseInt(e.target.value);
+  document.getElementById('agentV').textContent = (NUM_AGENTS / 1000 | 0) + 'k';
+});
+document.getElementById('senseS').addEventListener('input', e => {
+  SENSE_DIST = parseInt(e.target.value);
+  document.getElementById('senseV').textContent = SENSE_DIST;
+});
+document.getElementById('angleS').addEventListener('input', e => {
+  SENSE_ANGLE = parseInt(e.target.value) * Math.PI / 180;
+  document.getElementById('angleV').textContent = e.target.value + '°';
+});
+document.getElementById('turnS').addEventListener('input', e => {
+  TURN_SPEED = parseInt(e.target.value) * Math.PI / 180;
+  document.getElementById('turnV').textContent = e.target.value + '°';
+});
+document.getElementById('decayS').addEventListener('input', e => {
+  DECAY = parseInt(e.target.value) / 100;
+  document.getElementById('decayV').textContent = DECAY.toFixed(2);
+});
+document.getElementById('depositS').addEventListener('input', e => {
+  DEPOSIT = parseInt(e.target.value);
+  document.getElementById('depositV').textContent = DEPOSIT;
+});
+
+// Keyboard
+addEventListener('keydown', e => {
+  if (!started) { if (e.key === 'Enter') start(); return; }
+  if (e.key === ' ') { e.preventDefault(); togglePause(); }
+  if (e.key === '1') setTool('food');
+  if (e.key === '2') setTool('wall');
+  if (e.key === '3') setTool('erase');
+  if (e.key === '4') setTool('spawn');
+  if (e.key === 'c') resetSim();
+});
+
+// === STATS ===
+function updateStats() {
+  document.getElementById('stats').textContent =
+    agents.length.toLocaleString() + ' agents  ·  tick ' + tick.toLocaleString();
+}
+
+// === RESIZE ===
+function resize() {
+  const nw = Math.ceil(innerWidth / SCALE);
+  const nh = Math.ceil(innerHeight / SCALE);
+
+  if (started && trail) {
+    const ot = trail, ow = wallMap, oW = GW, oH = GH;
+    GW = nw; GH = nh;
+    trail = new Float32Array(GW * GH);
+    wallMap = new Uint8Array(GW * GH);
+    const cw = Math.min(oW, GW), ch = Math.min(oH, GH);
+    for (let y = 0; y < ch; y++) {
+      for (let x = 0; x < cw; x++) {
+        trail[y * GW + x] = ot[y * oW + x];
+        wallMap[y * GW + x] = ow[y * oW + x];
+      }
+    }
+    // Clamp agents to bounds
+    for (const a of agents) {
+      a.x = Math.max(1, Math.min(GW - 2, a.x));
+      a.y = Math.max(1, Math.min(GH - 2, a.y));
+    }
+  } else {
+    GW = nw; GH = nh;
+  }
+
+  canvas.width = GW; canvas.height = GH;
+  overlay.width = innerWidth; overlay.height = innerHeight;
+
+  if (!started && !trail) initSim();
+}
+
+// === MAIN LOOP ===
+function loop() {
+  if (started) {
+    if (!paused) simulate();
+    draw();
+    if (tick % 30 === 0) updateStats();
+  }
+  requestAnimationFrame(loop);
+}
+
+function start() {
+  document.getElementById('intro').classList.add('hide');
+  setTimeout(() => document.getElementById('intro').style.display = 'none', 1200);
+  document.getElementById('topL').style.display = 'block';
+  document.getElementById('topR').style.display = 'flex';
+  document.getElementById('bottomUI').style.display = 'flex';
+  document.getElementById('palettePicker').style.display = 'flex';
+  started = true;
+  initSim();
+}
+
+buildPalettePicker();
+addEventListener('resize', resize);
+resize();
+requestAnimationFrame(loop);
+</script>
+</body>
+</html>
