@@ -288,12 +288,18 @@ function step(){
   generation++;
 }
 
-// Render
-let imgData;
-function render(){
-  if(!imgData||imgData.width!==GW||imgData.height!==GH){
-    imgData=ctx.createImageData(GW,GH);
+// Render — offscreen canvas to avoid self-draw artifacts
+let offCanvas,offCtx,imgData;
+function ensureOffscreen(){
+  if(!offCanvas||offCanvas.width!==GW||offCanvas.height!==GH){
+    offCanvas=document.createElement('canvas');
+    offCanvas.width=GW;offCanvas.height=GH;
+    offCtx=offCanvas.getContext('2d');
+    imgData=offCtx.createImageData(GW,GH);
   }
+}
+function render(){
+  ensureOffscreen();
   const data=imgData.data;
   const w=GW,h=GH;
 
@@ -302,12 +308,9 @@ function render(){
       const id=x+y*w;
       const px=id*4;
 
-      // Map B concentration to color via LUT
-      // Also blend with A for more depth
       const bVal=b[id];
       const aVal=a[id];
 
-      // Composite value — primarily B, with some A influence
       let val=bVal*1.4-aVal*.05+.05;
       val=Math.max(0,Math.min(1,val));
       const ci=Math.floor(val*255);
@@ -319,11 +322,10 @@ function render(){
     }
   }
 
-  // Put at small size, then draw scaled
-  ctx.putImageData(imgData,0,0);
+  offCtx.putImageData(imgData,0,0);
   ctx.imageSmoothingEnabled=true;
   ctx.imageSmoothingQuality='high';
-  ctx.drawImage(canvas,0,0,GW,GH,0,0,W,H);
+  ctx.drawImage(offCanvas,0,0,GW,GH,0,0,W,H);
 }
 
 // Input

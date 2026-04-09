@@ -471,13 +471,20 @@ function clearFluid(){
 }
 
 // ---- Rendering ----
-let imgData;
+let offCanvas,offCtx,imgData;
+
+function ensureOffscreen(){
+  const ow=N+2,oh=M+2;
+  if(!offCanvas||offCanvas.width!==ow||offCanvas.height!==oh){
+    offCanvas=document.createElement('canvas');
+    offCanvas.width=ow;offCanvas.height=oh;
+    offCtx=offCanvas.getContext('2d');
+    imgData=offCtx.createImageData(ow,oh);
+  }
+}
 
 function render(){
-  // Create image data at sim resolution, then scale up
-  if(!imgData||imgData.width!==N+2||imgData.height!==M+2){
-    imgData=gl.createImageData(N+2,M+2);
-  }
+  ensureOffscreen();
   const data=imgData.data;
 
   for(let j=0;j<=M+1;j++){
@@ -507,15 +514,12 @@ function render(){
     }
   }
 
-  // Draw at sim resolution then scale
+  offCtx.putImageData(imgData,0,0);
   gl.save();
-  gl.setTransform(1,0,0,1,0,0); // reset transform
-  gl.putImageData(imgData,0,0);
-
-  // Scale up with smoothing
+  gl.setTransform(1,0,0,1,0,0);
   gl.imageSmoothingEnabled=true;
   gl.imageSmoothingQuality='high';
-  gl.drawImage(canvas,0,0,N+2,M+2,0,0,canvas.width,canvas.height);
+  gl.drawImage(offCanvas,0,0,N+2,M+2,0,0,canvas.width,canvas.height);
   gl.restore();
 }
 
