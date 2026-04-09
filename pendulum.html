@@ -1,0 +1,608 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Pendulum — Chaos in Two Arms</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;1,300&family=Inter:wght@300;400&display=swap');
+  *{margin:0;padding:0;box-sizing:border-box}
+  body{background:#060608;color:#fff;font-family:'Inter',sans-serif;overflow:hidden;height:100vh;width:100vw}
+  #c{position:absolute;top:0;left:0;width:100vw;height:100vh;z-index:1}
+  #trail{position:absolute;top:0;left:0;width:100vw;height:100vh;z-index:0}
+
+  #intro{position:fixed;inset:0;z-index:100;background:#060608;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;transition:opacity 1.2s;padding:20px}
+  #intro.hide{opacity:0;pointer-events:none}
+  #intro h1{font-family:'Cormorant Garamond',serif;font-size:clamp(42px,7vw,80px);font-weight:300;letter-spacing:12px;text-transform:lowercase;color:rgba(255,255,255,.8);margin-bottom:16px}
+  .isub{font-size:13px;font-weight:300;color:rgba(255,255,255,.12);letter-spacing:3px;max-width:480px;line-height:1.9;margin-bottom:8px}
+  .isub2{font-size:13px;font-weight:300;color:rgba(255,255,255,.05);letter-spacing:2px;max-width:420px;line-height:1.7;margin-bottom:32px;font-style:italic;font-family:'Cormorant Garamond',serif}
+  #intro button{background:none;border:1px solid rgba(255,255,255,.08);color:rgba(255,255,255,.4);font-family:'Cormorant Garamond',serif;font-size:18px;letter-spacing:8px;padding:16px 56px;border-radius:60px;cursor:pointer;transition:all .5s}
+  #intro button:hover{border-color:rgba(255,255,255,.25);color:rgba(255,255,255,.8);box-shadow:0 0 60px rgba(255,180,80,.05)}
+
+  .hud{position:fixed;z-index:20;display:none;padding:12px 16px;border-radius:12px;background:rgba(6,6,8,.8);backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px)}
+  #topL{top:20px;left:20px}
+  .ht{font-family:'Cormorant Garamond',serif;font-size:28px;font-weight:300;color:rgba(255,255,255,.12);letter-spacing:6px}
+  .hstat{font-size:8px;color:rgba(255,255,255,.06);letter-spacing:1px;margin-top:4px;font-family:monospace;font-variant-numeric:tabular-nums}
+  .hhint{font-size:9px;color:rgba(255,255,255,.06);letter-spacing:2px;margin-top:6px}
+
+  #topR{top:20px;right:20px;display:none;flex-direction:column;gap:5px;align-items:flex-end}
+  .cr{display:flex;align-items:center;gap:8px}
+  .cl{font-size:9px;color:rgba(255,255,255,.12);letter-spacing:2px;text-transform:uppercase;min-width:55px;text-align:right}
+  .cs{-webkit-appearance:none;appearance:none;width:100px;height:2px;background:rgba(255,255,255,.06);border-radius:2px;outline:none}
+  .cs::-webkit-slider-thumb{-webkit-appearance:none;width:10px;height:10px;border-radius:50%;background:rgba(255,255,255,.25);cursor:pointer}
+  .cv{font-size:8px;color:rgba(255,255,255,.08);min-width:30px;font-variant-numeric:tabular-nums}
+
+  #bot{bottom:20px;left:50%;transform:translateX(-50%);display:none;gap:6px;flex-wrap:wrap;justify-content:center}
+  .bb{background:rgba(6,6,8,.7);border:1px solid rgba(255,255,255,.08);color:rgba(255,255,255,.25);font-size:10px;letter-spacing:2px;padding:7px 14px;border-radius:20px;cursor:pointer;transition:all .3s;text-transform:lowercase;font-family:'Inter',sans-serif}
+  .bb:hover{background:rgba(255,255,255,.05);color:rgba(255,255,255,.4)}
+  .bb.on{border-color:rgba(255,180,80,.25);color:rgba(255,180,80,.5);background:rgba(255,180,80,.04)}
+
+  #phase{position:fixed;bottom:20px;right:20px;z-index:20;display:none;border:1px solid rgba(255,255,255,.06);border-radius:10px;overflow:hidden;background:rgba(6,6,8,.85)}
+  #phase canvas{display:block}
+</style>
+</head>
+<body>
+
+<div id="intro">
+  <h1>pendulum</h1>
+  <div class="isub">
+    Two arms. Gravity. Nothing else.<br>
+    The simplest chaotic system that exists.<br><br>
+    Launch two with angles 0.001° apart.<br>
+    Watch them become strangers.
+  </div>
+  <div class="isub2">"Chaos: when the present determines the future, but the approximate present does not approximately determine the future." — Edward Lorenz</div>
+  <button onclick="start()">release</button>
+</div>
+
+<canvas id="trail"></canvas>
+<canvas id="c"></canvas>
+
+<div class="hud" id="topL">
+  <div class="ht">pendulum</div>
+  <div class="hstat" id="statL">t = 0.00s</div>
+  <div class="hhint">click + drag to fling · scroll to add/remove pendulums</div>
+</div>
+
+<div class="hud" id="topR">
+  <div class="cr">
+    <span class="cl">length 1</span>
+    <input class="cs" type="range" min="50" max="200" value="120" id="l1S">
+    <span class="cv" id="l1V">120</span>
+  </div>
+  <div class="cr">
+    <span class="cl">length 2</span>
+    <input class="cs" type="range" min="50" max="200" value="120" id="l2S">
+    <span class="cv" id="l2V">120</span>
+  </div>
+  <div class="cr">
+    <span class="cl">mass 1</span>
+    <input class="cs" type="range" min="1" max="20" value="10" id="m1S">
+    <span class="cv" id="m1V">10</span>
+  </div>
+  <div class="cr">
+    <span class="cl">mass 2</span>
+    <input class="cs" type="range" min="1" max="20" value="10" id="m2S">
+    <span class="cv" id="m2V">10</span>
+  </div>
+  <div class="cr">
+    <span class="cl">gravity</span>
+    <input class="cs" type="range" min="1" max="30" value="10" id="gS">
+    <span class="cv" id="gV">10</span>
+  </div>
+  <div class="cr">
+    <span class="cl">damping</span>
+    <input class="cs" type="range" min="0" max="20" value="0" id="dS">
+    <span class="cv" id="dV">0</span>
+  </div>
+  <div class="cr">
+    <span class="cl">speed</span>
+    <input class="cs" type="range" min="1" max="5" value="2" id="spS">
+    <span class="cv" id="spV">2x</span>
+  </div>
+</div>
+
+<div class="hud" id="bot">
+  <div class="bb on" id="trailBtn" onclick="togTrail()">trails</div>
+  <div class="bb" id="phaseBtn" onclick="togPhase()">phase</div>
+  <div class="bb" onclick="addPendulum()">+pendulum</div>
+  <div class="bb" onclick="removePendulum()">-pendulum</div>
+  <div class="bb" onclick="preset('butterfly')">butterfly</div>
+  <div class="bb" onclick="preset('cascade')">cascade</div>
+  <div class="bb" onclick="preset('symmetric')">symmetric</div>
+  <div class="bb" onclick="preset('heavy')">heavy tip</div>
+  <div class="bb" onclick="clearTrails()">clear</div>
+  <div class="bb" onclick="resetAll()">reset</div>
+</div>
+
+<div id="phase">
+  <canvas id="phaseCanvas" width="200" height="200"></canvas>
+</div>
+
+<script>
+const C = document.getElementById('c');
+const X = C.getContext('2d');
+const T = document.getElementById('trail');
+const TX = T.getContext('2d');
+const PC = document.getElementById('phaseCanvas');
+const PX = PC.getContext('2d');
+
+let W, H;
+let pivotX, pivotY;
+
+// === PENDULUM STATE ===
+let pendulums = [];
+let simTime = 0;
+let started = false;
+let showTrails = true;
+let showPhase = false;
+
+// Colors for multiple pendulums
+const COLORS = [
+  [255, 140, 50],   // amber
+  [80, 180, 255],   // blue
+  [120, 255, 130],  // green
+  [255, 80, 120],   // pink
+  [200, 140, 255],  // purple
+  [255, 220, 60],   // gold
+  [80, 255, 220],   // cyan
+  [255, 160, 180],  // rose
+];
+
+// Parameters
+let L1 = 120, L2 = 120;
+let M1 = 10, M2 = 10;
+let G = 10;
+let damping = 0;
+let simSpeed = 2;
+
+// Interaction
+let dragging = false;
+let dragPend = -1;
+let dragJoint = -1; // 0=first mass, 1=second mass
+
+function createPendulum(a1, a2, w1, w2) {
+  return {
+    a1: a1,  // angle of arm 1 (from vertical)
+    a2: a2,  // angle of arm 2
+    w1: w1 || 0,  // angular velocity 1
+    w2: w2 || 0,  // angular velocity 2
+    trail: [],    // recent positions of tip
+  };
+}
+
+// === PHYSICS: RK4 integration of double pendulum ===
+function derivs(a1, a2, w1, w2) {
+  const m1 = M1, m2 = M2, l1 = L1, l2 = L2, g = G;
+  const da = a1 - a2;
+  const sin_da = Math.sin(da);
+  const cos_da = Math.cos(da);
+  const den = 2*m1 + m2 - m2*Math.cos(2*da);
+
+  const dw1 = (-g*(2*m1+m2)*Math.sin(a1)
+               - m2*g*Math.sin(a1-2*a2)
+               - 2*sin_da*m2*(w2*w2*l2 + w1*w1*l1*cos_da))
+              / (l1 * den);
+
+  const dw2 = (2*sin_da*(w1*w1*l1*(m1+m2)
+               + g*(m1+m2)*Math.cos(a1)
+               + w2*w2*l2*m2*cos_da))
+              / (l2 * den);
+
+  return { da1: w1, da2: w2, dw1, dw2 };
+}
+
+function stepRK4(p, dt) {
+  const { a1, a2, w1, w2 } = p;
+
+  const k1 = derivs(a1, a2, w1, w2);
+  const k2 = derivs(a1+k1.da1*dt/2, a2+k1.da2*dt/2, w1+k1.dw1*dt/2, w2+k1.dw2*dt/2);
+  const k3 = derivs(a1+k2.da1*dt/2, a2+k2.da2*dt/2, w1+k2.dw1*dt/2, w2+k2.dw2*dt/2);
+  const k4 = derivs(a1+k3.da1*dt, a2+k3.da2*dt, w1+k3.dw1*dt, w2+k3.dw2*dt);
+
+  p.a1 += (k1.da1 + 2*k2.da1 + 2*k3.da1 + k4.da1) * dt / 6;
+  p.a2 += (k1.da2 + 2*k2.da2 + 2*k3.da2 + k4.da2) * dt / 6;
+  p.w1 += (k1.dw1 + 2*k2.dw1 + 2*k3.dw1 + k4.dw1) * dt / 6;
+  p.w2 += (k1.dw2 + 2*k2.dw2 + 2*k3.dw2 + k4.dw2) * dt / 6;
+
+  // Damping
+  if (damping > 0) {
+    const d = 1 - damping * 0.001;
+    p.w1 *= d;
+    p.w2 *= d;
+  }
+}
+
+function getPositions(p) {
+  const x1 = pivotX + L1 * Math.sin(p.a1);
+  const y1 = pivotY + L1 * Math.cos(p.a1);
+  const x2 = x1 + L2 * Math.sin(p.a2);
+  const y2 = y1 + L2 * Math.cos(p.a2);
+  return { x1, y1, x2, y2 };
+}
+
+// === SIMULATION STEP ===
+function simulate() {
+  const dt = 0.01;
+  const steps = simSpeed;
+
+  for (let s = 0; s < steps; s++) {
+    for (let i = 0; i < pendulums.length; i++) {
+      if (dragging && dragPend === i) continue;
+      stepRK4(pendulums[i], dt);
+    }
+    simTime += dt;
+  }
+
+  // Record trails
+  for (let i = 0; i < pendulums.length; i++) {
+    const pos = getPositions(pendulums[i]);
+    pendulums[i].trail.push({ x: pos.x2, y: pos.y2 });
+    if (pendulums[i].trail.length > 2000) pendulums[i].trail.shift();
+  }
+}
+
+// === RENDERING ===
+function drawTrails() {
+  // Fade existing trails slightly
+  TX.fillStyle = 'rgba(6,6,8,0.008)';
+  TX.fillRect(0, 0, W, H);
+
+  // Draw new trail segments
+  for (let i = 0; i < pendulums.length; i++) {
+    const trail = pendulums[i].trail;
+    if (trail.length < 2) continue;
+    const col = COLORS[i % COLORS.length];
+
+    const len = trail.length;
+    const a = trail[len-2];
+    const b = trail[len-1];
+
+    TX.strokeStyle = `rgba(${col[0]},${col[1]},${col[2]},0.6)`;
+    TX.lineWidth = 1.5;
+    TX.beginPath();
+    TX.moveTo(a.x, a.y);
+    TX.lineTo(b.x, b.y);
+    TX.stroke();
+  }
+}
+
+function drawPendulums() {
+  X.clearRect(0, 0, W, H);
+
+  for (let i = 0; i < pendulums.length; i++) {
+    const p = pendulums[i];
+    const pos = getPositions(p);
+    const col = COLORS[i % COLORS.length];
+    const alpha = pendulums.length > 1 ? 0.7 : 1;
+
+    // Arms
+    X.strokeStyle = `rgba(${col[0]},${col[1]},${col[2]},${alpha * 0.3})`;
+    X.lineWidth = 2;
+    X.beginPath();
+    X.moveTo(pivotX, pivotY);
+    X.lineTo(pos.x1, pos.y1);
+    X.lineTo(pos.x2, pos.y2);
+    X.stroke();
+
+    // Joint 1 (mass 1)
+    const r1 = 3 + M1 * 0.4;
+    X.fillStyle = `rgba(${col[0]},${col[1]},${col[2]},${alpha * 0.6})`;
+    X.beginPath();
+    X.arc(pos.x1, pos.y1, r1, 0, Math.PI*2);
+    X.fill();
+
+    // Joint 2 (mass 2) — tip
+    const r2 = 3 + M2 * 0.4;
+    // Glow
+    const glow = X.createRadialGradient(pos.x2, pos.y2, 0, pos.x2, pos.y2, r2*4);
+    glow.addColorStop(0, `rgba(${col[0]},${col[1]},${col[2]},${alpha * 0.15})`);
+    glow.addColorStop(1, 'transparent');
+    X.fillStyle = glow;
+    X.fillRect(pos.x2-r2*4, pos.y2-r2*4, r2*8, r2*8);
+
+    X.fillStyle = `rgba(${col[0]},${col[1]},${col[2]},${alpha * 0.8})`;
+    X.beginPath();
+    X.arc(pos.x2, pos.y2, r2, 0, Math.PI*2);
+    X.fill();
+
+    // Bright center
+    X.fillStyle = `rgba(${Math.min(255,col[0]+60)},${Math.min(255,col[1]+60)},${Math.min(255,col[2]+60)},${alpha * 0.5})`;
+    X.beginPath();
+    X.arc(pos.x2, pos.y2, r2*0.4, 0, Math.PI*2);
+    X.fill();
+  }
+
+  // Pivot point
+  X.fillStyle = 'rgba(255,255,255,0.15)';
+  X.beginPath();
+  X.arc(pivotX, pivotY, 4, 0, Math.PI*2);
+  X.fill();
+}
+
+function drawPhase() {
+  if (!showPhase || pendulums.length === 0) return;
+
+  PX.fillStyle = 'rgba(6,6,8,0.05)';
+  PX.fillRect(0, 0, 200, 200);
+
+  // Draw axes
+  PX.strokeStyle = 'rgba(255,255,255,0.04)';
+  PX.lineWidth = 1;
+  PX.beginPath();
+  PX.moveTo(100, 0); PX.lineTo(100, 200);
+  PX.moveTo(0, 100); PX.lineTo(200, 100);
+  PX.stroke();
+
+  // Plot angle2 vs angular velocity2 for each pendulum
+  for (let i = 0; i < pendulums.length; i++) {
+    const p = pendulums[i];
+    const col = COLORS[i % COLORS.length];
+
+    // Normalize to fit: angle wraps around, velocity can be large
+    const px = 100 + ((p.a2 % (Math.PI*2)) / (Math.PI*2)) * 80;
+    const py = 100 - (p.w2 / 20) * 80;
+
+    PX.fillStyle = `rgba(${col[0]},${col[1]},${col[2]},0.7)`;
+    PX.fillRect(px-1, py-1, 2, 2);
+  }
+}
+
+// === INTERACTION ===
+C.addEventListener('mousedown', e => {
+  const mx = e.clientX, my = e.clientY;
+
+  // Check if clicking near any mass
+  for (let i = 0; i < pendulums.length; i++) {
+    const pos = getPositions(pendulums[i]);
+    const r2 = 3 + M2 * 0.4 + 15;
+    const r1 = 3 + M1 * 0.4 + 15;
+
+    // Check tip first
+    if ((mx-pos.x2)**2 + (my-pos.y2)**2 < r2*r2) {
+      dragging = true; dragPend = i; dragJoint = 1;
+      pendulums[i].w1 = 0; pendulums[i].w2 = 0;
+      return;
+    }
+    // Check first mass
+    if ((mx-pos.x1)**2 + (my-pos.y1)**2 < r1*r1) {
+      dragging = true; dragPend = i; dragJoint = 0;
+      pendulums[i].w1 = 0; pendulums[i].w2 = 0;
+      return;
+    }
+  }
+});
+
+C.addEventListener('mousemove', e => {
+  if (!dragging) return;
+  const mx = e.clientX, my = e.clientY;
+  const p = pendulums[dragPend];
+
+  if (dragJoint === 1) {
+    // Drag tip: set a2 based on mouse position relative to first mass
+    const pos = getPositions(p);
+    p.a2 = Math.atan2(mx - pos.x1, my - pos.y1);
+  } else {
+    // Drag first mass: set a1 based on mouse relative to pivot
+    p.a1 = Math.atan2(mx - pivotX, my - pivotY);
+  }
+  p.w1 = 0; p.w2 = 0;
+});
+
+C.addEventListener('mouseup', e => {
+  if (dragging) {
+    // Give a velocity based on mouse movement (fling)
+    const p = pendulums[dragPend];
+    // Small random kick to start motion
+    p.w1 = (Math.random()-0.5) * 0.5;
+    p.w2 = (Math.random()-0.5) * 0.5;
+  }
+  dragging = false;
+  dragPend = -1;
+});
+
+// Touch
+C.addEventListener('touchstart', e => {
+  e.preventDefault();
+  const t = e.touches[0];
+  const evt = { clientX: t.clientX, clientY: t.clientY };
+  C.dispatchEvent(new MouseEvent('mousedown', evt));
+}, {passive:false});
+
+C.addEventListener('touchmove', e => {
+  e.preventDefault();
+  const t = e.touches[0];
+  const evt = { clientX: t.clientX, clientY: t.clientY };
+  C.dispatchEvent(new MouseEvent('mousemove', evt));
+}, {passive:false});
+
+C.addEventListener('touchend', e => {
+  C.dispatchEvent(new MouseEvent('mouseup', {}));
+});
+
+// === CONTROLS ===
+function addPendulum() {
+  const base = pendulums[0] || { a1: Math.PI*0.75, a2: Math.PI*0.75 };
+  // Tiny perturbation — the butterfly
+  const eps = 0.001 * (pendulums.length);
+  pendulums.push(createPendulum(base.a1 + eps, base.a2 + eps));
+}
+
+function removePendulum() {
+  if (pendulums.length > 1) pendulums.pop();
+}
+
+function togTrail() {
+  showTrails = !showTrails;
+  document.getElementById('trailBtn').classList.toggle('on', showTrails);
+  if (!showTrails) TX.clearRect(0, 0, W, H);
+}
+
+function togPhase() {
+  showPhase = !showPhase;
+  document.getElementById('phaseBtn').classList.toggle('on', showPhase);
+  document.getElementById('phase').style.display = showPhase ? 'block' : 'none';
+  if (showPhase) PX.clearRect(0, 0, 200, 200);
+}
+
+function clearTrails() {
+  TX.clearRect(0, 0, W, H);
+  PX.clearRect(0, 0, 200, 200);
+  pendulums.forEach(p => p.trail = []);
+}
+
+function resetAll() {
+  clearTrails();
+  simTime = 0;
+  pendulums = [createPendulum(Math.PI * 0.75, Math.PI * 0.75)];
+}
+
+function preset(name) {
+  clearTrails();
+  simTime = 0;
+  pendulums = [];
+
+  if (name === 'butterfly') {
+    // Two pendulums, nearly identical — watch them diverge
+    pendulums.push(createPendulum(Math.PI*0.75, Math.PI*0.75));
+    pendulums.push(createPendulum(Math.PI*0.75 + 0.0001, Math.PI*0.75));
+  }
+  else if (name === 'cascade') {
+    // Five pendulums with increasing perturbation
+    for (let i = 0; i < 5; i++) {
+      pendulums.push(createPendulum(Math.PI*0.8 + i*0.002, Math.PI*0.6));
+    }
+  }
+  else if (name === 'symmetric') {
+    // Opposite starting angles
+    pendulums.push(createPendulum(Math.PI*0.5, Math.PI*0.5));
+    pendulums.push(createPendulum(-Math.PI*0.5, -Math.PI*0.5));
+    pendulums.push(createPendulum(Math.PI*0.5, -Math.PI*0.5));
+  }
+  else if (name === 'heavy') {
+    // Heavy tip, light arm
+    M1 = 2; M2 = 18;
+    document.getElementById('m1S').value = 2;
+    document.getElementById('m1V').textContent = '2';
+    document.getElementById('m2S').value = 18;
+    document.getElementById('m2V').textContent = '18';
+    pendulums.push(createPendulum(Math.PI*0.9, Math.PI*0.9));
+    pendulums.push(createPendulum(Math.PI*0.9 + 0.001, Math.PI*0.9));
+  }
+}
+
+// Sliders
+document.getElementById('l1S').addEventListener('input', e => {
+  L1 = parseInt(e.target.value);
+  document.getElementById('l1V').textContent = L1;
+});
+document.getElementById('l2S').addEventListener('input', e => {
+  L2 = parseInt(e.target.value);
+  document.getElementById('l2V').textContent = L2;
+});
+document.getElementById('m1S').addEventListener('input', e => {
+  M1 = parseInt(e.target.value);
+  document.getElementById('m1V').textContent = M1;
+});
+document.getElementById('m2S').addEventListener('input', e => {
+  M2 = parseInt(e.target.value);
+  document.getElementById('m2V').textContent = M2;
+});
+document.getElementById('gS').addEventListener('input', e => {
+  G = parseInt(e.target.value);
+  document.getElementById('gV').textContent = G;
+});
+document.getElementById('dS').addEventListener('input', e => {
+  damping = parseInt(e.target.value);
+  document.getElementById('dV').textContent = damping;
+});
+document.getElementById('spS').addEventListener('input', e => {
+  simSpeed = parseInt(e.target.value);
+  document.getElementById('spV').textContent = simSpeed + 'x';
+});
+
+// Scroll to add/remove
+addEventListener('wheel', e => {
+  e.preventDefault();
+  if (e.deltaY < 0) addPendulum();
+  else if (pendulums.length > 1) removePendulum();
+}, {passive:false});
+
+// Keyboard
+addEventListener('keydown', e => {
+  if (!started) return;
+  if (e.key === ' ') { e.preventDefault(); resetAll(); }
+  if (e.key === 't') togTrail();
+  if (e.key === 'p') togPhase();
+  if (e.key === '=') addPendulum();
+  if (e.key === '-') removePendulum();
+  if (e.key === 'c') clearTrails();
+  if (e.key >= '1' && e.key <= '4') {
+    const presets = ['butterfly','cascade','symmetric','heavy'];
+    preset(presets[parseInt(e.key)-1]);
+  }
+});
+
+// === STATS ===
+function updateStats() {
+  const energy = pendulums.map((p,i) => {
+    const pos = getPositions(p);
+    // Kinetic + Potential (approximate)
+    const ke = 0.5 * M1 * (p.w1*L1)**2 + 0.5 * M2 * ((p.w1*L1)**2 + (p.w2*L2)**2);
+    const pe = -M1*G*L1*Math.cos(p.a1) - M2*G*(L1*Math.cos(p.a1) + L2*Math.cos(p.a2));
+    return ke + pe;
+  });
+
+  let divergence = '';
+  if (pendulums.length >= 2) {
+    const p0 = pendulums[0], p1 = pendulums[1];
+    const da = Math.abs(p0.a2 - p1.a2);
+    divergence = ` · divergence: ${(da * 180 / Math.PI).toFixed(2)}°`;
+  }
+
+  document.getElementById('statL').textContent =
+    `t = ${simTime.toFixed(2)}s · pendulums: ${pendulums.length}${divergence}`;
+}
+
+// === RESIZE ===
+function resize() {
+  W = innerWidth; H = innerHeight;
+  C.width = W; C.height = H;
+  T.width = W; T.height = H;
+  pivotX = W / 2;
+  pivotY = H * 0.35;
+}
+
+// === LOOP ===
+function loop() {
+  if (started) {
+    simulate();
+    if (showTrails) drawTrails();
+    drawPendulums();
+    drawPhase();
+    if (Math.floor(simTime*100) % 10 === 0) updateStats();
+  }
+  requestAnimationFrame(loop);
+}
+
+function start() {
+  document.getElementById('intro').classList.add('hide');
+  setTimeout(() => document.getElementById('intro').style.display='none', 1200);
+  document.getElementById('topL').style.display='block';
+  document.getElementById('topR').style.display='flex';
+  document.getElementById('bot').style.display='flex';
+  started = true;
+
+  // Start with the butterfly preset — two nearly identical pendulums
+  pendulums = [
+    createPendulum(Math.PI * 0.75, Math.PI * 0.75),
+    createPendulum(Math.PI * 0.75 + 0.0001, Math.PI * 0.75),
+  ];
+}
+
+addEventListener('resize', resize);
+resize();
+requestAnimationFrame(loop);
+</script>
+</body>
+</html>
