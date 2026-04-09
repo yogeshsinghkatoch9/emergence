@@ -1,0 +1,594 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Crystal — Diffusion-Limited Aggregation</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;1,300&family=Inter:wght@300;400&display=swap');
+  *{margin:0;padding:0;box-sizing:border-box}
+  body{background:#040406;color:#fff;font-family:'Inter',sans-serif;overflow:hidden;height:100vh;width:100vw}
+  #c{position:absolute;top:0;left:0;width:100vw;height:100vh;image-rendering:pixelated}
+
+  #intro{position:fixed;inset:0;z-index:100;background:#040406;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;transition:opacity 1.2s;padding:20px}
+  #intro.hide{opacity:0;pointer-events:none}
+  #intro h1{font-family:'Cormorant Garamond',serif;font-size:clamp(42px,7vw,80px);font-weight:300;letter-spacing:12px;text-transform:lowercase;color:rgba(255,255,255,.8);margin-bottom:16px}
+  .isub{font-size:13px;font-weight:300;color:rgba(255,255,255,.12);letter-spacing:3px;max-width:480px;line-height:1.9;margin-bottom:8px}
+  .isub2{font-size:13px;font-weight:300;color:rgba(255,255,255,.05);letter-spacing:2px;max-width:420px;line-height:1.7;margin-bottom:32px;font-style:italic;font-family:'Cormorant Garamond',serif}
+  #intro button{background:none;border:1px solid rgba(255,255,255,.08);color:rgba(255,255,255,.4);font-family:'Cormorant Garamond',serif;font-size:18px;letter-spacing:8px;padding:16px 56px;border-radius:60px;cursor:pointer;transition:all .5s}
+  #intro button:hover{border-color:rgba(255,255,255,.25);color:rgba(255,255,255,.8);box-shadow:0 0 60px rgba(120,180,255,.05)}
+
+  .hud{position:fixed;z-index:10;display:none}
+  #topL{top:20px;left:20px}
+  .ht{font-family:'Cormorant Garamond',serif;font-size:28px;font-weight:300;color:rgba(255,255,255,.06);letter-spacing:6px}
+  .hstat{font-size:8px;color:rgba(255,255,255,.04);letter-spacing:1px;margin-top:4px;font-family:monospace}
+  .hhint{font-size:9px;color:rgba(255,255,255,.04);letter-spacing:2px;margin-top:6px}
+
+  #topR{top:20px;right:20px;display:none;flex-direction:column;gap:5px;align-items:flex-end}
+  .cr{display:flex;align-items:center;gap:8px}
+  .cl{font-size:9px;color:rgba(255,255,255,.1);letter-spacing:2px;text-transform:uppercase;min-width:65px;text-align:right}
+  .cs{-webkit-appearance:none;appearance:none;width:100px;height:2px;background:rgba(255,255,255,.04);border-radius:2px;outline:none}
+  .cs::-webkit-slider-thumb{-webkit-appearance:none;width:10px;height:10px;border-radius:50%;background:rgba(255,255,255,.2);cursor:pointer}
+  .cv{font-size:8px;color:rgba(255,255,255,.06);min-width:30px;font-variant-numeric:tabular-nums}
+
+  #bot{bottom:20px;left:50%;transform:translateX(-50%);display:none;flex-direction:column;align-items:center;gap:8px}
+  .brow{display:flex;gap:6px;flex-wrap:wrap;justify-content:center}
+  .bb{background:rgba(255,255,255,.02);border:1px solid rgba(255,255,255,.05);color:rgba(255,255,255,.18);font-size:10px;letter-spacing:2px;padding:7px 14px;border-radius:20px;cursor:pointer;transition:all .3s;text-transform:lowercase;font-family:'Inter',sans-serif}
+  .bb:hover{background:rgba(255,255,255,.05);color:rgba(255,255,255,.35)}
+  .bb.on{border-color:rgba(120,180,255,.2);color:rgba(120,180,255,.45);background:rgba(120,180,255,.04)}
+
+  #botR{bottom:20px;right:20px;display:none;flex-direction:column;gap:3px;align-items:flex-end}
+  .st{font-size:8px;color:rgba(255,255,255,.05);letter-spacing:1px;font-family:monospace}
+  .st em{font-style:normal;color:rgba(255,255,255,.1)}
+</style>
+</head>
+<body>
+
+<div id="intro">
+  <h1>crystal</h1>
+  <div class="isub">
+    One seed. Thousands of drifting particles.<br>
+    When they touch, they stick. Forever.<br><br>
+    The same process creates snowflakes,<br>
+    lightning, frost, mineral veins, and neurons.
+  </div>
+  <div class="isub2">"Nature uses only the longest threads to weave her patterns, so each small piece of her fabric reveals the organization of the entire tapestry." — Richard Feynman</div>
+  <button onclick="start()">crystallize</button>
+</div>
+
+<canvas id="c"></canvas>
+
+<div class="hud" id="topL">
+  <div class="ht">crystal</div>
+  <div class="hstat" id="statL">particles: 0 · crystallized: 1</div>
+  <div class="hhint">click to place seeds · drag to draw barriers</div>
+</div>
+
+<div class="hud" id="topR">
+  <div class="cr">
+    <span class="cl">walkers</span>
+    <input class="cs" type="range" min="500" max="10000" value="3000" step="500" id="walkS">
+    <span class="cv" id="walkV">3000</span>
+  </div>
+  <div class="cr">
+    <span class="cl">stickiness</span>
+    <input class="cs" type="range" min="10" max="100" value="100" id="stickS">
+    <span class="cv" id="stickV">100%</span>
+  </div>
+  <div class="cr">
+    <span class="cl">speed</span>
+    <input class="cs" type="range" min="1" max="50" value="20" id="speedS">
+    <span class="cv" id="speedV">20</span>
+  </div>
+  <div class="cr">
+    <span class="cl">symmetry</span>
+    <input class="cs" type="range" min="1" max="12" value="1" id="symS">
+    <span class="cv" id="symV">none</span>
+  </div>
+</div>
+
+<div class="hud" id="bot">
+  <div class="brow" id="palRow"></div>
+  <div class="brow" id="preRow"></div>
+</div>
+
+<div class="hud" id="botR">
+  <div class="st">crystallized: <em id="crL">1</em></div>
+  <div class="st">max radius: <em id="radL">0</em></div>
+  <div class="st">branches: <em id="brL">0</em></div>
+  <div class="st">density: <em id="denL">0%</em></div>
+</div>
+
+<script>
+const canvas = document.getElementById('c');
+const ctx = canvas.getContext('2d');
+
+let GW, GH;
+const SCALE = 2;
+
+// Grid: 0=empty, 1=crystal, 2=barrier
+let grid;
+let crystalAge;  // when each cell crystallized (for coloring)
+let crystalDist; // distance from nearest seed when crystallized
+
+// Walkers
+let walkers = [];
+let numWalkers = 3000;
+let stickiness = 1.0;
+let stepsPerFrame = 20;
+let symmetry = 1;
+
+// Stats
+let crystallized = 0;
+let maxRadius = 0;
+let tick = 0;
+let started = false;
+let paused = false;
+
+// Seeds
+let seeds = [];
+
+// Palette
+const PALETTES = {
+  frost: { name:'frost', fn: (age,dist,max) => {
+    const t = Math.min(1, dist/max);
+    return [~~(140+t*115), ~~(180+t*75), ~~(220+t*35)];
+  }},
+  fire: { name:'fire', fn: (age,dist,max) => {
+    const t = Math.min(1, dist/max);
+    return [~~(255-t*60), ~~(80+t*100), ~~(20+t*30)];
+  }},
+  aurora: { name:'aurora', fn: (age,dist,max) => {
+    const t = Math.min(1, dist/max);
+    return [~~(30+t*100), ~~(200-t*80), ~~(150+t*100)];
+  }},
+  gold: { name:'gold', fn: (age,dist,max) => {
+    const t = Math.min(1, dist/max);
+    return [~~(220-t*40), ~~(170-t*60), ~~(50+t*60)];
+  }},
+  electric: { name:'electric', fn: (age,dist,max) => {
+    const t = Math.min(1, dist/max);
+    return [~~(60+t*140), ~~(100+t*100), ~~(255-t*30)];
+  }},
+  bone: { name:'bone', fn: (age,dist,max) => {
+    const t = Math.min(1, dist/max);
+    const v = ~~(120+t*120);
+    return [v, ~~(v*0.95), ~~(v*0.88)];
+  }},
+  neon: { name:'neon', fn: (age,dist,max) => {
+    const t = Math.min(1, dist/max);
+    const h = t * 360;
+    const s = 0.8, l = 0.55;
+    // HSL to RGB
+    const c = (1-Math.abs(2*l-1))*s;
+    const x = c*(1-Math.abs((h/60)%2-1));
+    const m = l - c/2;
+    let r,g,b;
+    if(h<60){r=c;g=x;b=0}else if(h<120){r=x;g=c;b=0}else if(h<180){r=0;g=c;b=x}
+    else if(h<240){r=0;g=x;b=c}else if(h<300){r=x;g=0;b=c}else{r=c;g=0;b=x}
+    return [~~((r+m)*255),~~((g+m)*255),~~((b+m)*255)];
+  }},
+  midnight: { name:'midnight', fn: (age,dist,max) => {
+    const t = Math.min(1, dist/max);
+    return [~~(20+t*60), ~~(30+t*80), ~~(80+t*150)];
+  }},
+};
+let curPalette = 'frost';
+
+// Presets
+const PRESETS = [
+  { name:'snowflake', sym:6, stick:100, walkers:4000 },
+  { name:'lightning', sym:1, stick:30, walkers:5000 },
+  { name:'dendrite', sym:1, stick:80, walkers:3000 },
+  { name:'coral', sym:1, stick:100, walkers:2000 },
+  { name:'star', sym:5, stick:90, walkers:4000 },
+  { name:'flower', sym:8, stick:70, walkers:3500 },
+];
+
+// === INIT ===
+function initGrid() {
+  const sz = GW * GH;
+  grid = new Uint8Array(sz);
+  crystalAge = new Float32Array(sz);
+  crystalDist = new Float32Array(sz);
+  crystallized = 0;
+  maxRadius = 0;
+  seeds = [];
+  walkers = [];
+  tick = 0;
+
+  // Place center seed
+  placeSeed(Math.floor(GW/2), Math.floor(GH/2));
+}
+
+function placeSeed(sx, sy) {
+  if (symmetry <= 1) {
+    setSeed(sx, sy);
+  } else {
+    const cx = Math.floor(GW/2);
+    const cy = Math.floor(GH/2);
+    for (let i = 0; i < symmetry; i++) {
+      const angle = (i / symmetry) * Math.PI * 2;
+      const dx = sx - cx;
+      const dy = sy - cy;
+      const rx = Math.round(cx + dx * Math.cos(angle) - dy * Math.sin(angle));
+      const ry = Math.round(cy + dx * Math.sin(angle) + dy * Math.cos(angle));
+      setSeed(rx, ry);
+    }
+  }
+}
+
+function setSeed(x, y) {
+  if (x < 0 || x >= GW || y < 0 || y >= GH) return;
+  const idx = y * GW + x;
+  if (grid[idx] !== 0) return;
+  grid[idx] = 1;
+  crystalAge[idx] = tick;
+  crystalDist[idx] = 0;
+  crystallized++;
+  seeds.push({x, y});
+}
+
+function spawnWalkers() {
+  while (walkers.length < numWalkers) {
+    // Spawn on a circle around the crystal
+    const r = maxRadius + 20 + Math.random() * 40;
+    const angle = Math.random() * Math.PI * 2;
+    const cx = Math.floor(GW/2);
+    const cy = Math.floor(GH/2);
+    let wx = Math.round(cx + Math.cos(angle) * r);
+    let wy = Math.round(cy + Math.sin(angle) * r);
+
+    // Clamp to grid
+    wx = Math.max(1, Math.min(GW-2, wx));
+    wy = Math.max(1, Math.min(GH-2, wy));
+
+    walkers.push({ x: wx, y: wy });
+  }
+}
+
+// === SIMULATION ===
+function step() {
+  spawnWalkers();
+
+  const cx = Math.floor(GW/2);
+  const cy = Math.floor(GH/2);
+  const killR = maxRadius + 80; // kill walkers too far away
+
+  for (let i = walkers.length - 1; i >= 0; i--) {
+    const w = walkers[i];
+
+    // Random walk
+    const dir = ~~(Math.random() * 4);
+    if (dir === 0) w.x++;
+    else if (dir === 1) w.x--;
+    else if (dir === 2) w.y++;
+    else w.y--;
+
+    // Bounds check
+    if (w.x < 1 || w.x >= GW-1 || w.y < 1 || w.y >= GH-1) {
+      walkers.splice(i, 1);
+      continue;
+    }
+
+    // Kill if too far from center
+    const dx = w.x - cx;
+    const dy = w.y - cy;
+    if (dx*dx + dy*dy > killR*killR) {
+      walkers.splice(i, 1);
+      continue;
+    }
+
+    const idx = w.y * GW + w.x;
+
+    // Hit barrier?
+    if (grid[idx] === 2) {
+      // Bounce back
+      if (dir === 0) w.x -= 2;
+      else if (dir === 1) w.x += 2;
+      else if (dir === 2) w.y -= 2;
+      else w.y += 2;
+      continue;
+    }
+
+    // Check 4 neighbors for crystal
+    const hasNeighbor =
+      grid[(w.y-1)*GW+w.x] === 1 ||
+      grid[(w.y+1)*GW+w.x] === 1 ||
+      grid[w.y*GW+w.x-1] === 1 ||
+      grid[w.y*GW+w.x+1] === 1;
+
+    if (hasNeighbor && Math.random() < stickiness) {
+      // Crystallize!
+      if (symmetry <= 1) {
+        crystallizeAt(w.x, w.y);
+      } else {
+        // Apply symmetry
+        const ddx = w.x - cx;
+        const ddy = w.y - cy;
+        for (let s = 0; s < symmetry; s++) {
+          const angle = (s / symmetry) * Math.PI * 2;
+          const rx = Math.round(cx + ddx * Math.cos(angle) - ddy * Math.sin(angle));
+          const ry = Math.round(cy + ddx * Math.sin(angle) + ddy * Math.cos(angle));
+          crystallizeAt(rx, ry);
+        }
+      }
+      walkers.splice(i, 1);
+    }
+  }
+
+  tick++;
+}
+
+function crystallizeAt(x, y) {
+  if (x < 0 || x >= GW || y < 0 || y >= GH) return;
+  const idx = y * GW + x;
+  if (grid[idx] !== 0) return;
+
+  grid[idx] = 1;
+  crystalAge[idx] = tick;
+
+  // Distance from center
+  const cx = Math.floor(GW/2);
+  const cy = Math.floor(GH/2);
+  const dist = Math.sqrt((x-cx)**2 + (y-cy)**2);
+  crystalDist[idx] = dist;
+  if (dist > maxRadius) maxRadius = dist;
+
+  crystallized++;
+}
+
+// === RENDERING ===
+function draw() {
+  const img = ctx.createImageData(GW, GH);
+  const d = img.data;
+  const palFn = PALETTES[curPalette].fn;
+  const mr = Math.max(1, maxRadius);
+
+  for (let y = 0; y < GH; y++) {
+    for (let x = 0; x < GW; x++) {
+      const idx = y * GW + x;
+      const pi = idx * 4;
+
+      if (grid[idx] === 1) {
+        // Crystal
+        const [r,g,b] = palFn(crystalAge[idx], crystalDist[idx], mr);
+        d[pi] = r; d[pi+1] = g; d[pi+2] = b; d[pi+3] = 255;
+      } else if (grid[idx] === 2) {
+        // Barrier
+        d[pi] = 30; d[pi+1] = 25; d[pi+2] = 20; d[pi+3] = 255;
+      } else {
+        // Background
+        d[pi] = 4; d[pi+1] = 4; d[pi+2] = 6; d[pi+3] = 255;
+      }
+    }
+  }
+
+  ctx.putImageData(img, 0, 0);
+
+  // Draw walkers as subtle dots
+  ctx.fillStyle = 'rgba(255,255,255,0.08)';
+  for (let i = 0; i < walkers.length; i++) {
+    ctx.fillRect(walkers[i].x, walkers[i].y, 1, 1);
+  }
+}
+
+// === INTERACTION ===
+let mouseDown = false;
+let mouseTool = 'seed'; // seed or barrier
+
+canvas.addEventListener('mousedown', e => {
+  mouseDown = true;
+  if (e.button === 2) {
+    mouseTool = 'barrier';
+  } else {
+    mouseTool = 'seed';
+  }
+  paintAt(e.clientX, e.clientY);
+});
+
+canvas.addEventListener('mousemove', e => {
+  if (mouseDown) paintAt(e.clientX, e.clientY);
+});
+
+canvas.addEventListener('mouseup', () => { mouseDown = false; });
+canvas.addEventListener('contextmenu', e => e.preventDefault());
+
+canvas.addEventListener('touchstart', e => {
+  e.preventDefault(); mouseDown = true; mouseTool = 'seed';
+  paintAt(e.touches[0].clientX, e.touches[0].clientY);
+}, {passive:false});
+canvas.addEventListener('touchmove', e => {
+  e.preventDefault();
+  if (mouseDown) paintAt(e.touches[0].clientX, e.touches[0].clientY);
+}, {passive:false});
+canvas.addEventListener('touchend', () => { mouseDown = false; });
+
+function paintAt(ex, ey) {
+  const gx = Math.floor(ex / SCALE);
+  const gy = Math.floor(ey / SCALE);
+
+  if (mouseTool === 'seed') {
+    placeSeed(gx, gy);
+  } else {
+    // Draw barrier
+    const brush = 3;
+    for (let dy = -brush; dy <= brush; dy++) {
+      for (let dx = -brush; dx <= brush; dx++) {
+        if (dx*dx+dy*dy > brush*brush) continue;
+        const bx = gx+dx, by = gy+dy;
+        if (bx < 0 || bx >= GW || by < 0 || by >= GH) continue;
+        const idx = by*GW+bx;
+        if (grid[idx] === 0) grid[idx] = 2;
+      }
+    }
+  }
+}
+
+// === KEYBOARD ===
+addEventListener('keydown', e => {
+  if (e.key === ' ') { paused = !paused; e.preventDefault(); }
+  if (e.key === 'r') { initGrid(); }
+  if (e.key === 's') saveImage();
+});
+
+function saveImage() {
+  // Render at full resolution for save
+  const saveCanvas = document.createElement('canvas');
+  saveCanvas.width = GW * 2;
+  saveCanvas.height = GH * 2;
+  const sctx = saveCanvas.getContext('2d');
+  sctx.imageSmoothingEnabled = false;
+  sctx.drawImage(canvas, 0, 0, GW * 2, GH * 2);
+  const a = document.createElement('a');
+  a.download = 'crystal_' + Date.now() + '.png';
+  a.href = saveCanvas.toDataURL('image/png');
+  a.click();
+}
+
+// === SLIDERS ===
+document.getElementById('walkS').addEventListener('input', e => {
+  numWalkers = parseInt(e.target.value);
+  document.getElementById('walkV').textContent = numWalkers;
+});
+document.getElementById('stickS').addEventListener('input', e => {
+  stickiness = parseInt(e.target.value) / 100;
+  document.getElementById('stickV').textContent = e.target.value + '%';
+});
+document.getElementById('speedS').addEventListener('input', e => {
+  stepsPerFrame = parseInt(e.target.value);
+  document.getElementById('speedV').textContent = e.target.value;
+});
+document.getElementById('symS').addEventListener('input', e => {
+  symmetry = parseInt(e.target.value);
+  document.getElementById('symV').textContent = symmetry === 1 ? 'none' : symmetry + '-fold';
+});
+
+// === BUILD UI ===
+function buildPalUI() {
+  const row = document.getElementById('palRow');
+  row.innerHTML = '';
+  Object.keys(PALETTES).forEach(k => {
+    const b = document.createElement('div');
+    b.className = 'bb' + (k === curPalette ? ' on' : '');
+    b.textContent = PALETTES[k].name;
+    b.onclick = () => {
+      curPalette = k;
+      row.querySelectorAll('.bb').forEach(x => x.classList.remove('on'));
+      b.classList.add('on');
+    };
+    row.appendChild(b);
+  });
+}
+
+function buildPresetUI() {
+  const row = document.getElementById('preRow');
+  row.innerHTML = '';
+  PRESETS.forEach(p => {
+    const b = document.createElement('div');
+    b.className = 'bb';
+    b.textContent = p.name;
+    b.onclick = () => {
+      symmetry = p.sym;
+      stickiness = p.stick / 100;
+      numWalkers = p.walkers;
+      document.getElementById('symS').value = p.sym;
+      document.getElementById('symV').textContent = p.sym === 1 ? 'none' : p.sym + '-fold';
+      document.getElementById('stickS').value = p.stick;
+      document.getElementById('stickV').textContent = p.stick + '%';
+      document.getElementById('walkS').value = p.walkers;
+      document.getElementById('walkV').textContent = p.walkers;
+      initGrid();
+    };
+    row.appendChild(b);
+  });
+
+  // Add save + reset
+  const save = document.createElement('div');
+  save.className = 'bb'; save.textContent = 'save';
+  save.onclick = saveImage;
+  row.appendChild(save);
+
+  const reset = document.createElement('div');
+  reset.className = 'bb'; reset.textContent = 'reset';
+  reset.onclick = () => initGrid();
+  row.appendChild(reset);
+
+  const pause = document.createElement('div');
+  pause.className = 'bb'; pause.textContent = 'pause';
+  pause.id = 'pauseBtn';
+  pause.onclick = () => {
+    paused = !paused;
+    pause.textContent = paused ? 'play' : 'pause';
+    pause.classList.toggle('on', paused);
+  };
+  row.appendChild(pause);
+}
+
+// === STATS ===
+function updateStats() {
+  document.getElementById('statL').textContent =
+    `walkers: ${walkers.length} · crystallized: ${crystallized}`;
+  document.getElementById('crL').textContent = crystallized;
+  document.getElementById('radL').textContent = ~~maxRadius;
+
+  // Count branches (crystal cells with exactly 1 crystal neighbor = tip)
+  let tips = 0;
+  for (let y = 1; y < GH-1; y++) {
+    for (let x = 1; x < GW-1; x++) {
+      const idx = y*GW+x;
+      if (grid[idx] !== 1) continue;
+      let n = 0;
+      if (grid[idx-1]===1) n++;
+      if (grid[idx+1]===1) n++;
+      if (grid[idx-GW]===1) n++;
+      if (grid[idx+GW]===1) n++;
+      if (n === 1) tips++;
+    }
+  }
+  document.getElementById('brL').textContent = tips;
+
+  // Density: crystal cells / area of bounding circle
+  const area = Math.PI * maxRadius * maxRadius;
+  document.getElementById('denL').textContent =
+    area > 0 ? (crystallized / area * 100).toFixed(1) + '%' : '—';
+}
+
+// === RESIZE ===
+function resize() {
+  GW = Math.ceil(innerWidth / SCALE);
+  GH = Math.ceil(innerHeight / SCALE);
+  canvas.width = GW;
+  canvas.height = GH;
+  if (!started) initGrid();
+}
+
+// === LOOP ===
+function loop() {
+  if (started && !paused) {
+    for (let i = 0; i < stepsPerFrame; i++) step();
+    draw();
+    if (tick % 10 === 0) updateStats();
+  }
+  requestAnimationFrame(loop);
+}
+
+function start() {
+  document.getElementById('intro').classList.add('hide');
+  setTimeout(() => document.getElementById('intro').style.display='none', 1200);
+  document.getElementById('topL').style.display='block';
+  document.getElementById('topR').style.display='flex';
+  document.getElementById('bot').style.display='flex';
+  document.getElementById('botR').style.display='flex';
+  started = true;
+  initGrid();
+}
+
+buildPalUI();
+buildPresetUI();
+addEventListener('resize', resize);
+resize();
+requestAnimationFrame(loop);
+</script>
+</body>
+</html>
