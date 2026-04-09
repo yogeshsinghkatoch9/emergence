@@ -1,0 +1,803 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Genesis — Digital Primordial Soup</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;1,300;1,400&family=Inter:wght@300;400&display=swap');
+  *{margin:0;padding:0;box-sizing:border-box}
+  body{background:#030305;color:#fff;font-family:'Inter',sans-serif;overflow:hidden;height:100vh;width:100vw}
+  #c{position:absolute;top:0;left:0;width:100vw;height:100vh;image-rendering:auto}
+
+  #intro{position:fixed;inset:0;z-index:100;background:#030305;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;transition:opacity 1.5s;padding:20px}
+  #intro.hide{opacity:0;pointer-events:none}
+  #intro h1{font-family:'Cormorant Garamond',serif;font-size:clamp(42px,7vw,80px);font-weight:300;letter-spacing:12px;text-transform:lowercase;color:rgba(255,255,255,.8);margin-bottom:16px}
+  .isub{font-size:13px;font-weight:300;color:rgba(255,255,255,.12);letter-spacing:3px;max-width:480px;line-height:1.9;margin-bottom:8px}
+  .isub2{font-size:11px;font-weight:300;color:rgba(255,255,255,.05);letter-spacing:2px;max-width:400px;line-height:1.7;margin-bottom:32px;font-style:italic;font-family:'Cormorant Garamond',serif;font-size:13px}
+  #intro button{background:none;border:1px solid rgba(255,255,255,.08);color:rgba(255,255,255,.4);font-family:'Cormorant Garamond',serif;font-size:18px;letter-spacing:8px;padding:16px 56px;border-radius:60px;cursor:pointer;transition:all .5s}
+  #intro button:hover{border-color:rgba(255,255,255,.25);color:rgba(255,255,255,.8);box-shadow:0 0 60px rgba(100,200,150,.05)}
+
+  .hud{position:fixed;z-index:10;display:none}
+  #topL{top:20px;left:20px}
+  .ht{font-family:'Cormorant Garamond',serif;font-size:28px;font-weight:300;color:rgba(255,255,255,.06);letter-spacing:6px}
+  .hst{font-size:8px;color:rgba(255,255,255,.04);letter-spacing:2px;margin-top:4px;font-family:monospace}
+  .hep{font-size:9px;color:rgba(255,255,255,.04);letter-spacing:2px;margin-top:6px;font-family:'Cormorant Garamond',serif;font-style:italic;font-size:11px;max-width:300px;line-height:1.6;transition:color 1s}
+
+  #topR{top:20px;right:20px;display:none;flex-direction:column;gap:6px;align-items:flex-end}
+  .cr{display:flex;align-items:center;gap:8px}
+  .cl{font-size:9px;color:rgba(255,255,255,.1);letter-spacing:2px;text-transform:uppercase;min-width:55px;text-align:right}
+  .cs{-webkit-appearance:none;appearance:none;width:100px;height:2px;background:rgba(255,255,255,.04);border-radius:2px;outline:none}
+  .cs::-webkit-slider-thumb{-webkit-appearance:none;width:10px;height:10px;border-radius:50%;background:rgba(255,255,255,.2);cursor:pointer}
+  .cv{font-size:8px;color:rgba(255,255,255,.06);min-width:30px;font-variant-numeric:tabular-nums}
+
+  #botR{bottom:20px;right:20px;display:none;flex-direction:column;gap:4px;align-items:flex-end}
+  .stat{font-size:8px;color:rgba(255,255,255,.05);letter-spacing:1px;font-family:monospace;font-variant-numeric:tabular-nums}
+  .stat em{font-style:normal;color:rgba(255,255,255,.1)}
+
+  #bot{bottom:20px;left:50%;transform:translateX(-50%);display:none;gap:6px}
+  .bb{background:rgba(255,255,255,.02);border:1px solid rgba(255,255,255,.05);color:rgba(255,255,255,.18);font-size:10px;letter-spacing:2px;padding:7px 14px;border-radius:20px;cursor:pointer;transition:all .3s;text-transform:lowercase;font-family:'Inter',sans-serif}
+  .bb:hover{background:rgba(255,255,255,.05);color:rgba(255,255,255,.35)}
+  .bb.on{border-color:rgba(120,220,160,.2);color:rgba(120,220,160,.4);background:rgba(120,220,160,.03)}
+
+  #legend{bottom:60px;right:20px;display:none;flex-direction:column;gap:3px}
+  .leg{display:flex;align-items:center;gap:8px;font-size:8px;color:rgba(255,255,255,.06);letter-spacing:1px}
+  .lc{width:8px;height:8px;border-radius:50%}
+</style>
+</head>
+<body>
+
+<div id="intro">
+  <h1>genesis</h1>
+  <div class="isub">
+    How did dead matter become alive?<br>
+    No one has answered this.<br><br>
+    This is a digital primordial soup.<br>
+    Six elements. Simple bonding rules. Energy.<br>
+    Press play and watch chemistry invent life.
+  </div>
+  <div class="isub2">
+    "The universe is not only queerer than we suppose,<br>
+    but queerer than we can suppose." — J.B.S. Haldane
+  </div>
+  <button onclick="start()">ignite</button>
+</div>
+
+<canvas id="c"></canvas>
+
+<div class="hud" id="topL">
+  <div class="ht">genesis</div>
+  <div class="hst" id="timeL">t = 0</div>
+  <div class="hep" id="epochL">the void</div>
+</div>
+
+<div class="hud" id="topR">
+  <div class="cr">
+    <span class="cl">energy</span>
+    <input class="cs" type="range" min="0" max="100" value="40" id="energyS">
+    <span class="cv" id="energyV">40</span>
+  </div>
+  <div class="cr">
+    <span class="cl">bonds</span>
+    <input class="cs" type="range" min="1" max="20" value="8" id="bondS">
+    <span class="cv" id="bondV">8</span>
+  </div>
+  <div class="cr">
+    <span class="cl">mutation</span>
+    <input class="cs" type="range" min="0" max="50" value="10" id="mutS">
+    <span class="cv" id="mutV">10</span>
+  </div>
+</div>
+
+<div class="hud" id="botR">
+  <div class="stat" id="sAtoms">atoms: <em>0</em></div>
+  <div class="stat" id="sBonds">bonds: <em>0</em></div>
+  <div class="stat" id="sMols">molecules: <em>0</em></div>
+  <div class="stat" id="sLong">longest chain: <em>0</em></div>
+  <div class="stat" id="sRep">replicators: <em>0</em></div>
+  <div class="stat" id="sMem">membranes: <em>0</em></div>
+  <div class="stat" id="sGen">generations: <em>0</em></div>
+</div>
+
+<div class="hud" id="bot">
+  <div class="bb on" onclick="togView('bonds')">bonds</div>
+  <div class="bb" onclick="togView('energy')">energy</div>
+  <div class="bb" onclick="togView('molecules')">molecules</div>
+  <div class="bb" onclick="inject('H',50)">+hydrogen</div>
+  <div class="bb" onclick="inject('C',30)">+carbon</div>
+  <div class="bb" onclick="inject('N',20)">+nitrogen</div>
+  <div class="bb" onclick="lightning()">lightning</div>
+  <div class="bb" onclick="reset()">reset</div>
+</div>
+
+<div class="hud" id="legend">
+  <div class="leg"><div class="lc" style="background:#4af"></div>hydrogen — bonds with 1</div>
+  <div class="leg"><div class="lc" style="background:#888"></div>carbon — bonds with 4</div>
+  <div class="leg"><div class="lc" style="background:#5e8"></div>nitrogen — bonds with 3</div>
+  <div class="leg"><div class="lc" style="background:#e55"></div>oxygen — bonds with 2</div>
+  <div class="leg"><div class="lc" style="background:#ed3"></div>phosphorus — bonds with 5</div>
+  <div class="leg"><div class="lc" style="background:#e8e"></div>sulfur — bonds with 2</div>
+</div>
+
+<script>
+const canvas = document.getElementById('c');
+const ctx = canvas.getContext('2d');
+let W, H;
+
+// === ELEMENT DEFINITIONS ===
+// Each element has: valence (max bonds), radius, color, mass
+const ELEMENTS = {
+  H: { val: 1, r: 2.0, col: [80,170,255],   mass: 1,  name: 'hydrogen' },
+  C: { val: 4, r: 3.2, col: [140,140,140],   mass: 12, name: 'carbon' },
+  N: { val: 3, r: 3.0, col: [80,230,130],    mass: 14, name: 'nitrogen' },
+  O: { val: 2, r: 2.8, col: [230,85,85],     mass: 16, name: 'oxygen' },
+  P: { val: 5, r: 3.5, col: [235,210,50],    mass: 31, name: 'phosphorus' },
+  S: { val: 2, r: 3.3, col: [230,130,230],   mass: 32, name: 'sulfur' },
+};
+const ELEM_KEYS = Object.keys(ELEMENTS);
+
+// Bond energy between element pairs (higher = more stable)
+function bondEnergy(a, b) {
+  const pair = [a,b].sort().join('');
+  const energies = {
+    'CC': 3.6, 'CH': 4.2, 'CN': 3.0, 'CO': 3.6, 'CP': 2.6, 'CS': 2.7,
+    'HH': 4.5, 'HN': 3.9, 'HO': 4.6, 'HP': 3.2, 'HS': 3.6,
+    'NN': 1.6, 'NO': 2.0, 'NP': 2.3, 'NS': 2.7,
+    'OO': 1.5, 'OP': 3.8, 'OS': 2.5,
+    'PP': 2.0, 'PS': 2.1,
+    'SS': 2.6,
+  };
+  return energies[pair] || 2.0;
+}
+
+// === SIMULATION STATE ===
+let atoms = [];
+let bonds = [];
+let tick = 0;
+let generations = 0;
+let viewMode = 'bonds';
+let started = false;
+let energyInput = 40;
+let bondStrength = 8;
+let mutRate = 10;
+
+// Spatial grid for fast neighbor lookup
+const CELL = 30;
+let grid = {};
+
+function gridKey(x, y) { return (~~(x/CELL)) + ',' + (~~(y/CELL)); }
+
+function gridInsert(a) {
+  const k = gridKey(a.x, a.y);
+  if (!grid[k]) grid[k] = [];
+  grid[k].push(a);
+}
+
+function gridNeighbors(x, y, radius) {
+  const result = [];
+  const cr = Math.ceil(radius / CELL);
+  const gx = ~~(x/CELL), gy = ~~(y/CELL);
+  for (let dx = -cr; dx <= cr; dx++) {
+    for (let dy = -cr; dy <= cr; dy++) {
+      const cell = grid[(gx+dx)+','+(gy+dy)];
+      if (cell) {
+        for (let i = 0; i < cell.length; i++) {
+          const a = cell[i];
+          const d2 = (a.x-x)**2 + (a.y-y)**2;
+          if (d2 < radius*radius) result.push(a);
+        }
+      }
+    }
+  }
+  return result;
+}
+
+function rebuildGrid() {
+  grid = {};
+  for (let i = 0; i < atoms.length; i++) gridInsert(atoms[i]);
+}
+
+// === ATOM CREATION ===
+let nextId = 0;
+function createAtom(type, x, y, vx, vy) {
+  const el = ELEMENTS[type];
+  return {
+    id: nextId++,
+    type,
+    x, y,
+    vx: vx || (Math.random()-0.5)*2,
+    vy: vy || (Math.random()-0.5)*2,
+    bonds: [],       // array of bond objects
+    energy: 5,       // internal energy
+    age: 0,
+    r: el.r,
+    mass: el.mass,
+    val: el.val,
+    col: el.col,
+    molId: -1,       // molecule membership
+    replicator: false,
+    membrane: false,
+  };
+}
+
+// === BOND CREATION ===
+function createBond(a, b) {
+  if (a.bonds.length >= a.val || b.bonds.length >= b.val) return false;
+  // Check not already bonded
+  for (let i = 0; i < a.bonds.length; i++) {
+    if (a.bonds[i].other(a) === b) return false;
+  }
+  const bond = {
+    a, b,
+    energy: bondEnergy(a.type, b.type),
+    age: 0,
+    other(atom) { return atom === this.a ? this.b : this.a; }
+  };
+  a.bonds.push(bond);
+  b.bonds.push(bond);
+  bonds.push(bond);
+  return true;
+}
+
+function breakBond(bond) {
+  bond.a.bonds = bond.a.bonds.filter(b => b !== bond);
+  bond.b.bonds = bond.b.bonds.filter(b => b !== bond);
+  bonds = bonds.filter(b => b !== bond);
+}
+
+// === INITIALIZE ===
+function init() {
+  atoms = []; bonds = []; tick = 0; generations = 0; nextId = 0;
+
+  // Primordial soup: mostly H and O, some C, N, P, S
+  const dist = { H: 120, O: 80, C: 50, N: 30, P: 12, S: 8 };
+  const margin = 40;
+  Object.keys(dist).forEach(type => {
+    for (let i = 0; i < dist[type]; i++) {
+      atoms.push(createAtom(type,
+        margin + Math.random()*(W-margin*2),
+        margin + Math.random()*(H-margin*2)
+      ));
+    }
+  });
+}
+
+// === PHYSICS ===
+function physics() {
+  const dt = 0.5;
+  const damp = 0.995;
+  const bondDist = bondStrength * 1.2;
+
+  // Brownian motion (thermal energy)
+  const thermal = energyInput * 0.003;
+
+  for (let i = 0; i < atoms.length; i++) {
+    const a = atoms[i];
+
+    // Thermal jitter
+    a.vx += (Math.random()-0.5) * thermal;
+    a.vy += (Math.random()-0.5) * thermal;
+
+    // Bond spring forces
+    for (let j = 0; j < a.bonds.length; j++) {
+      const bond = a.bonds[j];
+      const other = bond.other(a);
+      const dx = other.x - a.x;
+      const dy = other.y - a.y;
+      const dist = Math.sqrt(dx*dx + dy*dy) || 0.1;
+      const restLen = (a.r + other.r) * 1.8;
+      const force = (dist - restLen) * 0.08;
+      const fx = (dx/dist) * force;
+      const fy = (dy/dist) * force;
+      a.vx += fx / a.mass;
+      a.vy += fy / a.mass;
+    }
+
+    // Update position
+    a.vx *= damp;
+    a.vy *= damp;
+    a.x += a.vx * dt;
+    a.y += a.vy * dt;
+
+    // Walls (wrap around for continuous chemistry)
+    if (a.x < 0) a.x += W;
+    if (a.x > W) a.x -= W;
+    if (a.y < 0) a.y += H;
+    if (a.y > H) a.y -= H;
+
+    a.age++;
+  }
+
+  // Repulsion between non-bonded nearby atoms
+  rebuildGrid();
+  for (let i = 0; i < atoms.length; i++) {
+    const a = atoms[i];
+    const near = gridNeighbors(a.x, a.y, 20);
+    for (let j = 0; j < near.length; j++) {
+      const b = near[j];
+      if (b.id <= a.id) continue;
+      const dx = b.x - a.x;
+      const dy = b.y - a.y;
+      const d2 = dx*dx + dy*dy;
+      const minD = (a.r + b.r) * 1.2;
+      if (d2 < minD*minD && d2 > 0.01) {
+        const d = Math.sqrt(d2);
+        const force = (minD - d) * 0.15;
+        const fx = (dx/d) * force;
+        const fy = (dy/d) * force;
+        a.vx -= fx / a.mass;
+        a.vy -= fy / a.mass;
+        b.vx += fx / b.mass;
+        b.vy += fy / b.mass;
+      }
+    }
+  }
+}
+
+// === CHEMISTRY ===
+function chemistry() {
+  rebuildGrid();
+
+  // Try forming bonds between nearby atoms
+  for (let i = 0; i < atoms.length; i++) {
+    const a = atoms[i];
+    if (a.bonds.length >= a.val) continue;
+
+    const near = gridNeighbors(a.x, a.y, bondStrength * 2.5);
+    for (let j = 0; j < near.length; j++) {
+      const b = near[j];
+      if (b.id <= a.id) continue;
+      if (b.bonds.length >= b.val) continue;
+
+      const dx = b.x - a.x;
+      const dy = b.y - a.y;
+      const dist = Math.sqrt(dx*dx + dy*dy);
+
+      if (dist < (a.r + b.r) * 3) {
+        // Bond probability based on energy and bond strength
+        const be = bondEnergy(a.type, b.type);
+        const prob = be * 0.02 * (energyInput / 50);
+
+        // Higher energy = more reactions
+        if (Math.random() < prob) {
+          createBond(a, b);
+        }
+      }
+    }
+  }
+
+  // Bond breaking — weak bonds + high energy = breaks
+  for (let i = bonds.length - 1; i >= 0; i--) {
+    const bond = bonds[i];
+    bond.age++;
+
+    // Break probability inversely proportional to bond energy
+    const breakProb = (energyInput * 0.0001) / (bond.energy * bond.energy);
+
+    // Strain: if atoms are too far, increase break chance
+    const dx = bond.b.x - bond.a.x;
+    const dy = bond.b.y - bond.a.y;
+    const dist = Math.sqrt(dx*dx + dy*dy);
+    const strain = dist / ((bond.a.r + bond.b.r) * 4);
+
+    if (Math.random() < breakProb * strain * strain) {
+      breakBond(bond);
+    }
+  }
+}
+
+// === MOLECULE DETECTION ===
+function detectMolecules() {
+  // BFS to find connected components
+  const visited = new Set();
+  let molCount = 0;
+  let maxChain = 0;
+  let replicators = 0;
+  let membranes = 0;
+
+  for (let i = 0; i < atoms.length; i++) atoms[i].molId = -1;
+
+  for (let i = 0; i < atoms.length; i++) {
+    if (visited.has(atoms[i].id)) continue;
+    if (atoms[i].bonds.length === 0) continue;
+
+    const mol = [];
+    const queue = [atoms[i]];
+    visited.add(atoms[i].id);
+
+    while (queue.length > 0) {
+      const a = queue.shift();
+      a.molId = molCount;
+      mol.push(a);
+
+      for (let j = 0; j < a.bonds.length; j++) {
+        const other = a.bonds[j].other(a);
+        if (!visited.has(other.id)) {
+          visited.add(other.id);
+          queue.push(other);
+        }
+      }
+    }
+
+    molCount++;
+    if (mol.length > maxChain) maxChain = mol.length;
+
+    // Detect replicator: molecule with >= 8 atoms containing C, N, and P
+    const types = new Set(mol.map(a => a.type));
+    if (mol.length >= 8 && types.has('C') && types.has('N') && types.has('P')) {
+      mol.forEach(a => a.replicator = true);
+      replicators++;
+
+      // Replication attempt
+      if (mol.length >= 10 && Math.random() < mutRate * 0.001) {
+        tryReplicate(mol);
+      }
+    } else {
+      mol.forEach(a => a.replicator = false);
+    }
+
+    // Detect membrane: ring structure (molecule where most atoms have exactly 2 bonds)
+    const ring = mol.filter(a => a.bonds.length === 2).length;
+    if (mol.length >= 6 && ring >= mol.length * 0.7) {
+      mol.forEach(a => a.membrane = true);
+      membranes++;
+    } else {
+      mol.forEach(a => a.membrane = false);
+    }
+  }
+
+  return { molCount, maxChain, replicators, membranes };
+}
+
+// === REPLICATION ===
+function tryReplicate(mol) {
+  if (atoms.length > 800) return; // population cap
+
+  generations++;
+
+  // Find center of molecule
+  let mx = 0, my = 0;
+  mol.forEach(a => { mx += a.x; my += a.y; });
+  mx /= mol.length; my /= mol.length;
+
+  // Create daughter atoms nearby with some mutation
+  const offset = 30 + Math.random() * 20;
+  const angle = Math.random() * Math.PI * 2;
+  const ox = Math.cos(angle) * offset;
+  const oy = Math.sin(angle) * offset;
+
+  const newAtoms = [];
+  const atomMap = {};
+
+  mol.forEach(a => {
+    // Mutation: chance to change element type
+    let type = a.type;
+    if (Math.random() < mutRate * 0.01) {
+      // Mutate to a random element (weighted toward similar)
+      const candidates = ELEM_KEYS.filter(k => k !== type);
+      type = candidates[~~(Math.random() * candidates.length)];
+    }
+
+    const na = createAtom(type, a.x + ox + (Math.random()-0.5)*8, a.y + oy + (Math.random()-0.5)*8);
+    na.energy = a.energy * 0.5;
+    a.energy *= 0.5; // Mother loses energy too
+    atoms.push(na);
+    newAtoms.push(na);
+    atomMap[a.id] = na;
+  });
+
+  // Recreate bonds in daughter
+  mol.forEach(a => {
+    a.bonds.forEach(bond => {
+      const other = bond.other(a);
+      if (atomMap[other.id] && atomMap[a.id]) {
+        const na = atomMap[a.id];
+        const nb = atomMap[other.id];
+        if (na.id < nb.id) { // avoid double-creating
+          createBond(na, nb);
+        }
+      }
+    });
+  });
+}
+
+// === ENERGY INJECTION ===
+function injectEnergy() {
+  if (tick % 60 !== 0) return;
+
+  // Photons: random energy bursts hitting atoms
+  const photons = Math.floor(energyInput / 10);
+  for (let i = 0; i < photons; i++) {
+    const target = atoms[~~(Math.random() * atoms.length)];
+    if (target) {
+      target.energy += energyInput * 0.1;
+      target.vx += (Math.random()-0.5) * 3;
+      target.vy += (Math.random()-0.5) * 3;
+    }
+  }
+}
+
+// === DECAY / DEATH ===
+function decay() {
+  // Remove atoms that are too old and unbonded (entropy)
+  if (atoms.length > 600 && tick % 120 === 0) {
+    for (let i = atoms.length - 1; i >= 0; i--) {
+      const a = atoms[i];
+      if (a.bonds.length === 0 && a.age > 3000 && Math.random() < 0.05) {
+        atoms.splice(i, 1);
+      }
+    }
+  }
+
+  // Spontaneous generation to keep soup alive
+  if (atoms.length < 200 && tick % 60 === 0) {
+    const type = ['H','H','H','O','O','C','N','P','S'][~~(Math.random()*9)];
+    atoms.push(createAtom(type, Math.random()*W, Math.random()*H));
+  }
+}
+
+// === INJECTION / LIGHTNING ===
+function inject(type, count) {
+  for (let i = 0; i < count; i++) {
+    atoms.push(createAtom(type,
+      W/2 + (Math.random()-0.5)*200,
+      H/2 + (Math.random()-0.5)*200,
+      (Math.random()-0.5)*8,
+      (Math.random()-0.5)*8
+    ));
+  }
+}
+
+function lightning() {
+  // Massive energy burst in a random location
+  const lx = Math.random() * W;
+  const ly = Math.random() * H;
+  const near = gridNeighbors(lx, ly, 100);
+
+  near.forEach(a => {
+    a.energy += 50;
+    const dx = a.x - lx;
+    const dy = a.y - ly;
+    const d = Math.sqrt(dx*dx + dy*dy) || 1;
+    a.vx += (dx/d) * 15;
+    a.vy += (dy/d) * 15;
+  });
+
+  // Flash effect
+  lightningFlash = { x: lx, y: ly, t: 20 };
+
+  // Force some bonds in the blast zone
+  for (let i = 0; i < near.length; i++) {
+    for (let j = i+1; j < near.length && j < i+5; j++) {
+      if (Math.random() < 0.4) createBond(near[i], near[j]);
+    }
+  }
+}
+let lightningFlash = null;
+
+// === EPOCH DETECTION ===
+function getEpoch(stats) {
+  if (stats.replicators > 0 && stats.membranes > 0) return { name: 'protocells', col: 'rgba(255,200,100,.12)' };
+  if (stats.replicators > 0) return { name: 'replication has begun', col: 'rgba(120,230,160,.1)' };
+  if (stats.maxChain >= 12) return { name: 'polymers forming', col: 'rgba(160,180,230,.08)' };
+  if (stats.maxChain >= 6) return { name: 'complex molecules', col: 'rgba(140,170,220,.06)' };
+  if (stats.molCount > 20) return { name: 'chemistry awakens', col: 'rgba(130,160,200,.05)' };
+  if (stats.molCount > 5) return { name: 'first bonds', col: 'rgba(120,150,180,.04)' };
+  return { name: 'the void', col: 'rgba(255,255,255,.04)' };
+}
+
+// === RENDERING ===
+function draw(stats) {
+  ctx.fillStyle = '#030305';
+  ctx.fillRect(0, 0, W, H);
+
+  // Subtle background glow based on energy
+  const grad = ctx.createRadialGradient(W/2, H/2, 0, W/2, H/2, W*0.6);
+  grad.addColorStop(0, `rgba(20,30,40,${energyInput*0.002})`);
+  grad.addColorStop(1, 'transparent');
+  ctx.fillStyle = grad;
+  ctx.fillRect(0, 0, W, H);
+
+  // Lightning flash
+  if (lightningFlash && lightningFlash.t > 0) {
+    const lf = lightningFlash;
+    const alpha = lf.t / 20;
+    const g = ctx.createRadialGradient(lf.x, lf.y, 0, lf.x, lf.y, 120);
+    g.addColorStop(0, `rgba(200,220,255,${alpha*0.4})`);
+    g.addColorStop(0.3, `rgba(150,180,255,${alpha*0.15})`);
+    g.addColorStop(1, 'transparent');
+    ctx.fillStyle = g;
+    ctx.fillRect(lf.x-120, lf.y-120, 240, 240);
+    lf.t--;
+    if (lf.t <= 0) lightningFlash = null;
+  }
+
+  // Draw bonds
+  ctx.lineWidth = 1;
+  for (let i = 0; i < bonds.length; i++) {
+    const bond = bonds[i];
+    const a = bond.a, b = bond.b;
+
+    // Wrap-around check: don't draw bonds that span the entire screen
+    const dx = Math.abs(a.x - b.x);
+    const dy = Math.abs(a.y - b.y);
+    if (dx > W/2 || dy > H/2) continue;
+
+    let alpha;
+    if (viewMode === 'energy') {
+      alpha = Math.min(0.5, bond.energy * 0.08);
+    } else if (viewMode === 'molecules') {
+      const hue = (bond.a.molId * 67) % 360;
+      ctx.strokeStyle = `hsla(${hue},60%,50%,0.3)`;
+      ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(b.x, b.y); ctx.stroke();
+      continue;
+    } else {
+      alpha = 0.12 + Math.min(0.2, bond.age * 0.0003);
+    }
+
+    // Color blend between the two atoms
+    const r = (a.col[0]+b.col[0])/2;
+    const g = (a.col[1]+b.col[1])/2;
+    const bl = (a.col[2]+b.col[2])/2;
+    ctx.strokeStyle = `rgba(${~~r},${~~g},${~~bl},${alpha})`;
+    ctx.beginPath();
+    ctx.moveTo(a.x, a.y);
+    ctx.lineTo(b.x, b.y);
+    ctx.stroke();
+  }
+
+  // Draw atoms
+  for (let i = 0; i < atoms.length; i++) {
+    const a = atoms[i];
+    let r = a.r;
+    let alpha = 0.6;
+    let col = a.col;
+
+    if (viewMode === 'energy') {
+      const e = Math.min(1, a.energy / 30);
+      col = [~~(col[0]*(1-e)+255*e), ~~(col[1]*(1-e*0.5)), ~~(col[2]*(1-e))];
+      alpha = 0.3 + e * 0.5;
+    } else if (viewMode === 'molecules') {
+      if (a.molId >= 0) {
+        const hue = (a.molId * 67) % 360;
+        ctx.fillStyle = `hsla(${hue},60%,55%,0.7)`;
+        ctx.beginPath(); ctx.arc(a.x, a.y, r*1.2, 0, Math.PI*2); ctx.fill();
+        continue;
+      }
+      alpha = 0.15;
+    }
+
+    // Glow for replicators
+    if (a.replicator) {
+      const glow = ctx.createRadialGradient(a.x, a.y, 0, a.x, a.y, r*5);
+      glow.addColorStop(0, 'rgba(100,255,150,0.12)');
+      glow.addColorStop(1, 'transparent');
+      ctx.fillStyle = glow;
+      ctx.fillRect(a.x-r*5, a.y-r*5, r*10, r*10);
+      r *= 1.3;
+    }
+
+    // Glow for membrane atoms
+    if (a.membrane) {
+      const glow = ctx.createRadialGradient(a.x, a.y, 0, a.x, a.y, r*4);
+      glow.addColorStop(0, 'rgba(200,150,255,0.08)');
+      glow.addColorStop(1, 'transparent');
+      ctx.fillStyle = glow;
+      ctx.fillRect(a.x-r*4, a.y-r*4, r*8, r*8);
+    }
+
+    ctx.fillStyle = `rgba(${col[0]},${col[1]},${col[2]},${alpha})`;
+    ctx.beginPath();
+    ctx.arc(a.x, a.y, r, 0, Math.PI*2);
+    ctx.fill();
+
+    // Subtle bright center
+    ctx.fillStyle = `rgba(${Math.min(255,col[0]+80)},${Math.min(255,col[1]+80)},${Math.min(255,col[2]+80)},${alpha*0.5})`;
+    ctx.beginPath();
+    ctx.arc(a.x, a.y, r*0.4, 0, Math.PI*2);
+    ctx.fill();
+  }
+}
+
+// === UI ===
+function togView(mode) {
+  viewMode = mode;
+  document.querySelectorAll('#bot .bb').forEach(b => {
+    b.classList.toggle('on', b.textContent === mode);
+  });
+}
+
+function updateStats(stats) {
+  document.getElementById('sAtoms').innerHTML = `atoms: <em>${atoms.length}</em>`;
+  document.getElementById('sBonds').innerHTML = `bonds: <em>${bonds.length}</em>`;
+  document.getElementById('sMols').innerHTML = `molecules: <em>${stats.molCount}</em>`;
+  document.getElementById('sLong').innerHTML = `longest chain: <em>${stats.maxChain}</em>`;
+  document.getElementById('sRep').innerHTML = `replicators: <em>${stats.replicators}</em>`;
+  document.getElementById('sMem').innerHTML = `membranes: <em>${stats.membranes}</em>`;
+  document.getElementById('sGen').innerHTML = `generations: <em>${generations}</em>`;
+  document.getElementById('timeL').textContent = `t = ${tick}`;
+
+  const epoch = getEpoch(stats);
+  const el = document.getElementById('epochL');
+  el.textContent = epoch.name;
+  el.style.color = epoch.col;
+}
+
+// Sliders
+document.getElementById('energyS').addEventListener('input', e => {
+  energyInput = parseInt(e.target.value);
+  document.getElementById('energyV').textContent = energyInput;
+});
+document.getElementById('bondS').addEventListener('input', e => {
+  bondStrength = parseInt(e.target.value);
+  document.getElementById('bondV').textContent = bondStrength;
+});
+document.getElementById('mutS').addEventListener('input', e => {
+  mutRate = parseInt(e.target.value);
+  document.getElementById('mutV').textContent = mutRate;
+});
+
+// Click to inject energy at point
+canvas.addEventListener('click', e => {
+  if (!started) return;
+  const near = gridNeighbors(e.clientX, e.clientY, 60);
+  near.forEach(a => {
+    a.energy += 20;
+    const dx = a.x - e.clientX;
+    const dy = a.y - e.clientY;
+    const d = Math.sqrt(dx*dx+dy*dy) || 1;
+    a.vx += (dx/d)*5;
+    a.vy += (dy/d)*5;
+  });
+});
+
+function reset() {
+  init();
+}
+
+// === RESIZE ===
+function resize() {
+  W = innerWidth;
+  H = innerHeight;
+  canvas.width = W;
+  canvas.height = H;
+}
+
+// === MAIN LOOP ===
+function loop() {
+  if (started) {
+    physics();
+    chemistry();
+    injectEnergy();
+    decay();
+
+    const stats = (tick % 30 === 0) ? detectMolecules() : lastStats;
+    if (tick % 30 === 0) lastStats = stats;
+
+    draw(stats || {molCount:0,maxChain:0,replicators:0,membranes:0});
+
+    if (tick % 30 === 0 && stats) updateStats(stats);
+    tick++;
+  }
+  requestAnimationFrame(loop);
+}
+let lastStats = {molCount:0,maxChain:0,replicators:0,membranes:0};
+
+function start() {
+  document.getElementById('intro').classList.add('hide');
+  setTimeout(() => document.getElementById('intro').style.display='none', 1500);
+  document.getElementById('topL').style.display='block';
+  document.getElementById('topR').style.display='flex';
+  document.getElementById('bot').style.display='flex';
+  document.getElementById('botR').style.display='flex';
+  document.getElementById('legend').style.display='flex';
+  started = true;
+  init();
+}
+
+addEventListener('resize', resize);
+resize();
+requestAnimationFrame(loop);
+</script>
+</body>
+</html>
