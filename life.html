@@ -1,0 +1,510 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Life — Cellular Automata</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;1,300&family=Inter:wght@300;400&display=swap');
+  *{margin:0;padding:0;box-sizing:border-box}
+  body{background:#060608;color:#fff;font-family:'Inter',sans-serif;overflow:hidden;height:100vh;width:100vw}
+  canvas{display:block;position:absolute;top:0;left:0;cursor:crosshair}
+
+  #intro{position:fixed;inset:0;z-index:100;background:#060608;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;transition:opacity 1.2s}
+  #intro.hide{opacity:0;pointer-events:none}
+  #intro h1{font-family:'Cormorant Garamond',serif;font-size:clamp(48px,8vw,80px);font-weight:300;letter-spacing:12px;text-transform:lowercase;color:rgba(255,255,255,.8);margin-bottom:12px}
+  #intro p{font-size:13px;font-weight:300;color:rgba(255,255,255,.2);letter-spacing:3px;max-width:420px;line-height:1.8;margin-bottom:32px}
+  #intro button{background:none;border:1px solid rgba(255,255,255,.1);color:rgba(255,255,255,.5);font-family:'Cormorant Garamond',serif;font-size:18px;letter-spacing:6px;padding:14px 48px;border-radius:60px;cursor:pointer;transition:all .4s}
+  #intro button:hover{border-color:rgba(255,255,255,.3);color:rgba(255,255,255,.8);box-shadow:0 0 40px rgba(255,255,255,.05)}
+
+  .info{position:fixed;top:20px;left:20px;z-index:10;display:none}
+  .info-title{font-family:'Cormorant Garamond',serif;font-size:32px;font-weight:300;color:rgba(255,255,255,.08);letter-spacing:6px}
+  .info-stats{font-size:9px;color:rgba(255,255,255,.08);letter-spacing:1px;margin-top:4px;font-variant-numeric:tabular-nums}
+
+  #controls{position:fixed;top:20px;right:20px;z-index:10;display:none;flex-direction:column;gap:5px;align-items:flex-end}
+  .ctrl-row{display:flex;align-items:center;gap:6px}
+  .ctrl-btn{background:rgba(255,255,255,.02);border:1px solid rgba(255,255,255,.06);color:rgba(255,255,255,.2);font-size:9px;letter-spacing:2px;padding:5px 12px;border-radius:14px;cursor:pointer;transition:all .3s;text-transform:uppercase}
+  .ctrl-btn:hover{background:rgba(255,255,255,.05);color:rgba(255,255,255,.4)}
+  .ctrl-btn.active{border-color:rgba(255,200,100,.2);color:rgba(255,200,100,.4);background:rgba(255,200,100,.03)}
+  .ctrl-slider{-webkit-appearance:none;appearance:none;width:80px;height:2px;background:rgba(255,255,255,.06);border-radius:2px;outline:none}
+  .ctrl-slider::-webkit-slider-thumb{-webkit-appearance:none;width:10px;height:10px;border-radius:50%;background:rgba(255,255,255,.2);cursor:pointer}
+  .ctrl-label{font-size:9px;color:rgba(255,255,255,.12);letter-spacing:2px;text-transform:uppercase}
+
+  .bar{position:fixed;bottom:24px;left:50%;transform:translateX(-50%);z-index:10;display:none;gap:6px;align-items:center;flex-wrap:wrap;justify-content:center;max-width:95vw}
+  .bar-btn{background:rgba(255,255,255,.02);border:1px solid rgba(255,255,255,.06);color:rgba(255,255,255,.2);font-family:'Inter',sans-serif;font-size:10px;letter-spacing:2px;padding:7px 14px;border-radius:20px;cursor:pointer;transition:all .3s;text-transform:lowercase}
+  .bar-btn:hover{background:rgba(255,255,255,.05);color:rgba(255,255,255,.4)}
+  .bar-btn.active{border-color:rgba(255,200,100,.2);color:rgba(255,200,100,.4);background:rgba(255,200,100,.03)}
+
+  .palette-row{position:fixed;bottom:64px;left:50%;transform:translateX(-50%);z-index:10;display:none;gap:6px}
+</style>
+</head>
+<body>
+
+<div id="intro">
+  <h1>life</h1>
+  <p>Four rules. Two states. Infinite complexity.<br>Click to draw. Watch emergence unfold.</p>
+  <button onclick="start()">enter</button>
+</div>
+
+<canvas id="canvas"></canvas>
+
+<div class="info" id="info">
+  <div class="info-title">life</div>
+  <div class="info-stats" id="stats">gen 0 · pop 0</div>
+</div>
+
+<div id="controls">
+  <div class="ctrl-row">
+    <span class="ctrl-label">speed</span>
+    <input class="ctrl-slider" type="range" min="1" max="30" value="10" id="speedSlider">
+  </div>
+  <div class="ctrl-row">
+    <button class="ctrl-btn" id="playBtn" onclick="togglePlay()">pause</button>
+    <button class="ctrl-btn" onclick="stepOnce()">step</button>
+    <button class="ctrl-btn" onclick="clearGrid()">clear</button>
+    <button class="ctrl-btn" onclick="randomize()">random</button>
+  </div>
+</div>
+
+<div class="palette-row" id="ruleBar"></div>
+<div class="bar" id="patternBar"></div>
+
+<script>
+const canvas=document.getElementById('canvas');
+const ctx=canvas.getContext('2d');
+
+// Grid
+const COLS=300,ROWS=200;
+let grid=new Uint8Array(COLS*ROWS);  // 0=dead, 1+=alive (age)
+let grid2=new Uint8Array(COLS*ROWS);
+let generation=0;
+let population=0;
+let playing=true;
+let speed=10;
+let frameCount=0;
+
+// Camera
+let camX=0,camY=0,camZoom=1;
+let targetZoom=1;
+let cellSize=4;
+
+// Mouse
+let mouseDown=false,mouseBtn=0;
+let mx=0,my=0;
+let panning=false,panStartX=0,panStartY=0,panCamX=0,panCamY=0;
+let selectedPattern=null;
+
+// Rules
+const RULES={
+  'life':{name:'Conway\'s Life',B:[3],S:[2,3]},
+  'highlife':{name:'HighLife',B:[3,6],S:[2,3]},
+  'seeds':{name:'Seeds',B:[2],S:[]},
+  'daynight':{name:'Day & Night',B:[3,6,7,8],S:[3,4,6,7,8]},
+  'diamoeba':{name:'Diamoeba',B:[3,5,6,7,8],S:[5,6,7,8]},
+  'maze':{name:'Maze',B:[3],S:[1,2,3,4,5]},
+};
+let currentRule='life';
+
+// Patterns (relative coordinates)
+const PATTERNS={
+  'glider':{name:'Glider',cells:[[1,0],[2,1],[0,2],[1,2],[2,2]]},
+  'lwss':{name:'Spaceship',cells:[[1,0],[4,0],[0,1],[0,2],[4,2],[0,3],[1,3],[2,3],[3,3]]},
+  'pulsar':{name:'Pulsar',cells:(()=>{
+    const c=[];
+    const q=[[2,0],[3,0],[4,0],[0,2],[0,3],[0,4],[5,2],[5,3],[5,4],[2,5],[3,5],[4,5]];
+    for(const[x,y]of q){c.push([x,y]);c.push([x+8,y]);c.push([x,y+8]);c.push([x+8,y+8])}
+    return c;
+  })()},
+  'gosper':{name:'Gosper Gun',cells:[
+    [24,0],[22,1],[24,1],[12,2],[13,2],[20,2],[21,2],[34,2],[35,2],
+    [11,3],[15,3],[20,3],[21,3],[34,3],[35,3],[0,4],[1,4],[10,4],[16,4],[20,4],[21,4],
+    [0,5],[1,5],[10,5],[14,5],[16,5],[17,5],[22,5],[24,5],[10,6],[16,6],[24,6],
+    [11,7],[15,7],[12,8],[13,8]
+  ]},
+  'rpentomino':{name:'R-pentomino',cells:[[1,0],[2,0],[0,1],[1,1],[1,2]]},
+  'acorn':{name:'Acorn',cells:[[1,0],[3,1],[0,2],[1,2],[4,2],[5,2],[6,2]]},
+  'diehard':{name:'Diehard',cells:[[6,0],[0,1],[1,1],[1,2],[5,2],[6,2],[7,2]]},
+  'block':{name:'Block',cells:[[0,0],[1,0],[0,1],[1,1]]},
+  'beehive':{name:'Beehive',cells:[[1,0],[2,0],[0,1],[3,1],[1,2],[2,2]]},
+  'blinker':{name:'Blinker',cells:[[0,0],[1,0],[2,0]]},
+};
+
+// Color palettes
+const PALETTES={
+  'ember':[[6,6,8],[255,200,50],[255,120,20],[180,40,10],[80,15,5],[30,8,4]],
+  'cyan':[[6,6,8],[150,255,255],[0,200,220],[0,120,160],[0,50,80],[0,20,40]],
+  'green':[[6,6,8],[180,255,100],[80,200,40],[30,120,20],[10,60,10],[5,30,5]],
+  'purple':[[6,6,8],[220,180,255],[160,60,200],[80,20,140],[30,10,80],[10,5,40]],
+  'white':[[6,6,8],[255,255,255],[200,200,210],[120,120,140],[60,60,80],[30,30,45]],
+};
+let currentPalette='ember';
+
+function resize(){
+  canvas.width=innerWidth;canvas.height=innerHeight;
+  // Center grid
+  camX=(innerWidth-COLS*cellSize)/2;
+  camY=(innerHeight-ROWS*cellSize)/2;
+}
+
+function cellAt(sx,sy){
+  const gx=Math.floor((sx-camX)/(cellSize*camZoom));
+  const gy=Math.floor((sy-camY)/(cellSize*camZoom));
+  return[gx,gy];
+}
+
+function setCell(x,y,val){
+  if(x>=0&&x<COLS&&y>=0&&y<ROWS)grid[x+y*COLS]=val;
+}
+
+function getCell(x,y){
+  // Wrap around (toroidal)
+  x=((x%COLS)+COLS)%COLS;
+  y=((y%ROWS)+ROWS)%ROWS;
+  return grid[x+y*COLS]>0?1:0;
+}
+
+function countNeighbors(x,y){
+  return getCell(x-1,y-1)+getCell(x,y-1)+getCell(x+1,y-1)+
+         getCell(x-1,y)+getCell(x+1,y)+
+         getCell(x-1,y+1)+getCell(x,y+1)+getCell(x+1,y+1);
+}
+
+function step(){
+  const rule=RULES[currentRule];
+  population=0;
+  for(let y=0;y<ROWS;y++){
+    for(let x=0;x<COLS;x++){
+      const id=x+y*COLS;
+      const alive=grid[id]>0;
+      const n=countNeighbors(x,y);
+      if(alive){
+        if(rule.S.includes(n)){
+          grid2[id]=Math.min(grid[id]+1,255); // age
+          population++;
+        }else{
+          grid2[id]=0;
+        }
+      }else{
+        if(rule.B.includes(n)){
+          grid2[id]=1; // born
+          population++;
+        }else{
+          grid2[id]=0;
+        }
+      }
+    }
+  }
+  [grid,grid2]=[grid2,grid];
+  generation++;
+}
+
+function render(){
+  const W=canvas.width,H=canvas.height;
+  ctx.fillStyle='#060608';
+  ctx.fillRect(0,0,W,H);
+
+  ctx.save();
+  ctx.translate(camX,camY);
+  ctx.scale(camZoom,camZoom);
+
+  const cs=cellSize;
+  const pal=PALETTES[currentPalette];
+
+  // Visible bounds
+  const startX=Math.max(0,Math.floor(-camX/(cs*camZoom)));
+  const startY=Math.max(0,Math.floor(-camY/(cs*camZoom)));
+  const endX=Math.min(COLS,Math.ceil((W-camX)/(cs*camZoom)));
+  const endY=Math.min(ROWS,Math.ceil((H-camY)/(cs*camZoom)));
+
+  // Draw grid lines (very subtle)
+  if(camZoom>0.8){
+    ctx.strokeStyle='rgba(255,255,255,.015)';
+    ctx.lineWidth=0.5/camZoom;
+    for(let x=startX;x<=endX;x++){
+      ctx.beginPath();ctx.moveTo(x*cs,startY*cs);ctx.lineTo(x*cs,endY*cs);ctx.stroke();
+    }
+    for(let y=startY;y<=endY;y++){
+      ctx.beginPath();ctx.moveTo(startX*cs,y*cs);ctx.lineTo(endX*cs,y*cs);ctx.stroke();
+    }
+  }
+
+  // Draw cells
+  for(let y=startY;y<endY;y++){
+    for(let x=startX;x<endX;x++){
+      const age=grid[x+y*COLS];
+      if(age===0)continue;
+
+      // Color by age: newborn=bright, old=deep
+      const t=Math.min(age/60,1);
+      const ci=Math.min(Math.floor(t*(pal.length-2))+1,pal.length-1);
+      const c=pal[ci];
+
+      // Glow for young cells
+      if(age<5&&camZoom>.5){
+        const glowAlpha=.15*(1-age/5);
+        ctx.fillStyle=`rgba(${c[0]},${c[1]},${c[2]},${glowAlpha})`;
+        ctx.fillRect(x*cs-cs*.5,y*cs-cs*.5,cs*2,cs*2);
+      }
+
+      ctx.fillStyle=`rgb(${c[0]},${c[1]},${c[2]})`;
+      ctx.fillRect(x*cs+.5,y*cs+.5,cs-1,cs-1);
+    }
+  }
+
+  // Ghost preview of selected pattern
+  if(selectedPattern&&!panning){
+    const[gx,gy]=cellAt(mx,my);
+    const pat=PATTERNS[selectedPattern];
+    ctx.fillStyle='rgba(255,255,255,.12)';
+    for(const[dx,dy]of pat.cells){
+      ctx.fillRect((gx+dx)*cs+.5,(gy+dy)*cs+.5,cs-1,cs-1);
+    }
+  }
+
+  ctx.restore();
+}
+
+// Input
+canvas.addEventListener('mousedown',e=>{
+  mouseDown=true;mouseBtn=e.button;mx=e.clientX;my=e.clientY;
+  if(e.button===1||e.button===2||(e.button===0&&e.shiftKey)){
+    // Middle click or right click or shift+click = pan
+    panning=true;panStartX=mx;panStartY=my;panCamX=camX;panCamY=camY;
+    canvas.style.cursor='grabbing';
+  }else if(selectedPattern){
+    stampPattern(mx,my);
+  }else{
+    paintCell(mx,my,1);
+  }
+});
+
+canvas.addEventListener('mousemove',e=>{
+  mx=e.clientX;my=e.clientY;
+  if(panning){
+    camX=panCamX+(mx-panStartX);
+    camY=panCamY+(my-panStartY);
+  }else if(mouseDown&&!selectedPattern){
+    paintCell(mx,my,mouseBtn===2?0:1);
+  }
+});
+
+canvas.addEventListener('mouseup',()=>{
+  mouseDown=false;panning=false;
+  canvas.style.cursor='crosshair';
+});
+canvas.addEventListener('mouseleave',()=>{mouseDown=false;panning=false});
+canvas.addEventListener('contextmenu',e=>e.preventDefault());
+
+// Touch
+let lastTouchDist=0;
+canvas.addEventListener('touchstart',e=>{
+  e.preventDefault();
+  if(e.touches.length===2){
+    panning=true;
+    const t1=e.touches[0],t2=e.touches[1];
+    lastTouchDist=Math.sqrt((t1.clientX-t2.clientX)**2+(t1.clientY-t2.clientY)**2);
+    panStartX=(t1.clientX+t2.clientX)/2;panStartY=(t1.clientY+t2.clientY)/2;
+    panCamX=camX;panCamY=camY;
+  }else{
+    mouseDown=true;
+    mx=e.touches[0].clientX;my=e.touches[0].clientY;
+    if(selectedPattern)stampPattern(mx,my);
+    else paintCell(mx,my,1);
+  }
+},{passive:false});
+
+canvas.addEventListener('touchmove',e=>{
+  e.preventDefault();
+  if(e.touches.length===2){
+    const t1=e.touches[0],t2=e.touches[1];
+    const dist=Math.sqrt((t1.clientX-t2.clientX)**2+(t1.clientY-t2.clientY)**2);
+    const cx=(t1.clientX+t2.clientX)/2,cy=(t1.clientY+t2.clientY)/2;
+    if(lastTouchDist>0){
+      const scale=dist/lastTouchDist;
+      zoom(scale-1,cx,cy);
+    }
+    camX=panCamX+(cx-panStartX);camY=panCamY+(cy-panStartY);
+    lastTouchDist=dist;
+  }else if(mouseDown){
+    mx=e.touches[0].clientX;my=e.touches[0].clientY;
+    if(!selectedPattern)paintCell(mx,my,1);
+  }
+},{passive:false});
+
+canvas.addEventListener('touchend',e=>{
+  mouseDown=false;panning=false;lastTouchDist=0;
+});
+
+// Zoom
+addEventListener('wheel',e=>{
+  e.preventDefault();
+  const delta=e.deltaY>0?-0.1:0.1;
+  zoom(delta,e.clientX,e.clientY);
+},{passive:false});
+
+function zoom(delta,cx,cy){
+  const oldZoom=camZoom;
+  camZoom=Math.max(0.3,Math.min(8,camZoom*(1+delta)));
+  // Zoom toward cursor
+  camX=cx-(cx-camX)*camZoom/oldZoom;
+  camY=cy-(cy-camY)*camZoom/oldZoom;
+}
+
+function paintCell(sx,sy,val){
+  const[gx,gy]=cellAt(sx,sy);
+  if(gx>=0&&gx<COLS&&gy>=0&&gy<ROWS){
+    grid[gx+gy*COLS]=val?1:0;
+  }
+}
+
+function stampPattern(sx,sy){
+  const[gx,gy]=cellAt(sx,sy);
+  const pat=PATTERNS[selectedPattern];
+  for(const[dx,dy]of pat.cells){
+    const x=gx+dx,y=gy+dy;
+    if(x>=0&&x<COLS&&y>=0&&y<ROWS)grid[x+y*COLS]=1;
+  }
+}
+
+// Controls
+document.getElementById('speedSlider').addEventListener('input',e=>{speed=parseInt(e.target.value)});
+
+function togglePlay(){
+  playing=!playing;
+  document.getElementById('playBtn').textContent=playing?'pause':'play';
+}
+
+function stepOnce(){playing=false;document.getElementById('playBtn').textContent='play';step()}
+
+function clearGrid(){
+  grid.fill(0);grid2.fill(0);generation=0;population=0;
+}
+
+function randomize(){
+  for(let i=0;i<grid.length;i++)grid[i]=Math.random()<.15?1:0;
+  generation=0;
+}
+
+// Build rule buttons
+const ruleBar=document.getElementById('ruleBar');
+Object.keys(RULES).forEach(key=>{
+  const btn=document.createElement('div');
+  btn.className='bar-btn'+(key===currentRule?' active':'');
+  btn.textContent=key;btn.dataset.rule=key;
+  btn.onclick=()=>{
+    currentRule=key;
+    document.querySelectorAll('#ruleBar .bar-btn').forEach(b=>b.classList.remove('active'));
+    btn.classList.add('active');
+  };
+  ruleBar.appendChild(btn);
+});
+
+// Palette buttons
+Object.keys(PALETTES).forEach(key=>{
+  const btn=document.createElement('div');
+  btn.className='bar-btn'+(key===currentPalette?' active':'');
+  btn.textContent=key;btn.style.fontSize='9px';
+  btn.onclick=()=>{
+    currentPalette=key;
+    ruleBar.querySelectorAll('.bar-btn').forEach(b=>{
+      if(Object.keys(PALETTES).includes(b.textContent))b.classList.remove('active');
+    });
+    btn.classList.add('active');
+  };
+  ruleBar.appendChild(btn);
+});
+
+// Build pattern buttons
+const patBar=document.getElementById('patternBar');
+// Deselect button
+const desBtn=document.createElement('div');
+desBtn.className='bar-btn active';desBtn.textContent='draw';
+desBtn.onclick=()=>{
+  selectedPattern=null;
+  document.querySelectorAll('#patternBar .bar-btn').forEach(b=>b.classList.remove('active'));
+  desBtn.classList.add('active');
+};
+patBar.appendChild(desBtn);
+
+Object.keys(PATTERNS).forEach(key=>{
+  const btn=document.createElement('div');
+  btn.className='bar-btn';
+  btn.textContent=PATTERNS[key].name.toLowerCase();
+  btn.onclick=()=>{
+    selectedPattern=key;
+    document.querySelectorAll('#patternBar .bar-btn').forEach(b=>b.classList.remove('active'));
+    btn.classList.add('active');
+  };
+  patBar.appendChild(btn);
+});
+
+// Keyboard
+addEventListener('keydown',e=>{
+  if(e.key===' '){e.preventDefault();togglePlay()}
+  if(e.key==='c')clearGrid();
+  if(e.key==='r')randomize();
+  if(e.key==='n'){playing=false;document.getElementById('playBtn').textContent='play';step()}
+  if(e.key==='Escape'){
+    selectedPattern=null;
+    document.querySelectorAll('#patternBar .bar-btn').forEach(b=>b.classList.remove('active'));
+    desBtn.classList.add('active');
+  }
+});
+
+// Main loop
+function tick(){
+  frameCount++;
+  if(playing&&frameCount%(Math.max(1,31-speed))===0){
+    step();
+  }
+  // Count population periodically
+  if(frameCount%10===0){
+    population=0;
+    for(let i=0;i<grid.length;i++)if(grid[i]>0)population++;
+    document.getElementById('stats').textContent=`gen ${generation} · pop ${population}`;
+  }
+  render();
+  requestAnimationFrame(tick);
+}
+
+function start(){
+  document.getElementById('intro').classList.add('hide');
+  document.getElementById('info').style.display='block';
+  document.getElementById('controls').style.display='flex';
+  document.getElementById('ruleBar').style.display='flex';
+  document.getElementById('patternBar').style.display='flex';
+
+  // Seed with some interesting patterns
+  // Gosper gun top-left area
+  const pat=PATTERNS.gosper;
+  const ox=20,oy=20;
+  for(const[dx,dy]of pat.cells)grid[(ox+dx)+(oy+dy)*COLS]=1;
+
+  // A few gliders
+  for(let i=0;i<5;i++){
+    const gx=60+i*30,gy=10+i*15;
+    for(const[dx,dy]of PATTERNS.glider.cells){
+      const x=gx+dx,y=gy+dy;
+      if(x<COLS&&y<ROWS)grid[x+y*COLS]=1;
+    }
+  }
+
+  // R-pentomino in center
+  const cx=Math.floor(COLS/2),cy=Math.floor(ROWS/2);
+  for(const[dx,dy]of PATTERNS.rpentomino.cells)grid[(cx+dx)+(cy+dy)*COLS]=1;
+
+  // Random scatter
+  for(let i=0;i<800;i++){
+    const x=Math.floor(Math.random()*COLS);
+    const y=Math.floor(Math.random()*ROWS);
+    grid[x+y*COLS]=1;
+  }
+
+  requestAnimationFrame(tick);
+}
+
+addEventListener('resize',resize);
+resize();
+</script>
+</body>
+</html>
