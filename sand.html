@@ -8,7 +8,10 @@
   @import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;1,300&family=Inter:wght@300;400&display=swap');
   *{margin:0;padding:0;box-sizing:border-box}
   body{background:#060608;color:#fff;font-family:'Inter',sans-serif;overflow:hidden;height:100vh;width:100vw}
-  #c{position:absolute;top:0;left:0;width:100vw;height:100vh;image-rendering:pixelated;z-index:1;cursor:crosshair}
+  canvas{position:absolute;top:0;left:0;width:100vw;height:100vh;image-rendering:pixelated}
+  #c{z-index:1}
+  #glow{z-index:2;pointer-events:none;mix-blend-mode:screen}
+  #cursor{z-index:3;pointer-events:none}
 
   #intro{position:fixed;inset:0;z-index:100;background:#060608;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;transition:opacity 1.2s;padding:20px}
   #intro.hide{opacity:0;pointer-events:none}
@@ -18,30 +21,33 @@
   #intro button{background:none;border:1px solid rgba(255,255,255,.08);color:rgba(255,255,255,.4);font-family:'Cormorant Garamond',serif;font-size:18px;letter-spacing:8px;padding:16px 56px;border-radius:60px;cursor:pointer;transition:all .5s}
   #intro button:hover{border-color:rgba(255,255,255,.25);color:rgba(255,255,255,.8);box-shadow:0 0 60px rgba(220,180,80,.06)}
 
-  .hud{position:fixed;z-index:20;display:none;padding:10px 14px;border-radius:10px;background:rgba(6,6,8,.82);backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px)}
+  .hud{position:fixed;z-index:20;display:none;padding:10px 14px;border-radius:12px;background:rgba(6,6,8,.85);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);border:1px solid rgba(255,255,255,.04)}
 
   #topL{top:16px;left:16px}
-  .ht{font-family:'Cormorant Garamond',serif;font-size:24px;font-weight:300;color:rgba(255,255,255,.1);letter-spacing:5px}
-  .hstat{font-size:8px;color:rgba(255,255,255,.07);letter-spacing:1px;margin-top:3px;font-family:monospace}
+  .ht{font-family:'Cormorant Garamond',serif;font-size:24px;font-weight:300;color:rgba(255,255,255,.15);letter-spacing:5px}
+  .hstat{font-size:8px;color:rgba(255,255,255,.10);letter-spacing:1px;margin-top:3px;font-family:monospace}
 
-  #topR{top:16px;right:16px;display:none;flex-direction:column;gap:4px;align-items:flex-end}
-  .cr{display:flex;align-items:center;gap:6px}
-  .cl{font-size:8px;color:rgba(255,255,255,.1);letter-spacing:2px;text-transform:uppercase;min-width:40px;text-align:right}
-  .cs{-webkit-appearance:none;appearance:none;width:80px;height:2px;background:rgba(255,255,255,.05);border-radius:2px;outline:none}
-  .cs::-webkit-slider-thumb{-webkit-appearance:none;width:10px;height:10px;border-radius:50%;background:rgba(255,255,255,.2);cursor:pointer}
-  .cv{font-size:7px;color:rgba(255,255,255,.07);min-width:20px;font-variant-numeric:tabular-nums}
+  #topR{top:16px;right:16px;display:none;flex-direction:column;gap:6px;align-items:flex-end}
+  .cr{display:flex;align-items:center;gap:8px}
+  .cl{font-size:8px;color:rgba(255,255,255,.15);letter-spacing:2px;text-transform:uppercase;min-width:44px;text-align:right}
+  .cs{-webkit-appearance:none;appearance:none;width:90px;height:2px;background:rgba(255,255,255,.06);border-radius:2px;outline:none}
+  .cs::-webkit-slider-thumb{-webkit-appearance:none;width:12px;height:12px;border-radius:50%;background:rgba(255,255,255,.25);cursor:pointer;transition:background .2s}
+  .cs::-webkit-slider-thumb:hover{background:rgba(255,255,255,.4)}
+  .cv{font-size:7px;color:rgba(255,255,255,.10);min-width:20px;font-variant-numeric:tabular-nums}
 
-  #bottomUI{position:fixed;bottom:16px;left:50%;transform:translateX(-50%);z-index:20;display:none;flex-direction:column;align-items:center;gap:8px;max-width:90vw}
+  #bottomUI{position:fixed;bottom:16px;left:50%;transform:translateX(-50%);z-index:20;display:none;flex-direction:column;align-items:center;gap:8px;max-width:94vw}
 
-  #matBar{display:flex;gap:4px;flex-wrap:wrap;justify-content:center}
-  .mb{border:1px solid rgba(255,255,255,.06);color:rgba(255,255,255,.25);font-size:9px;letter-spacing:2px;padding:6px 12px;border-radius:16px;cursor:pointer;transition:all .25s;text-transform:lowercase;font-family:'Inter',sans-serif;display:flex;align-items:center;gap:5px}
-  .mb:hover{border-color:rgba(255,255,255,.15);color:rgba(255,255,255,.4)}
-  .mb.on{border-color:rgba(255,200,100,.3);color:rgba(255,200,100,.6);background:rgba(255,200,100,.05)}
-  .mb .dot{width:8px;height:8px;border-radius:50%;flex-shrink:0}
+  #matBar{display:flex;gap:4px;flex-wrap:wrap;justify-content:center;padding:8px 12px;background:rgba(6,6,8,.85);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);border-radius:14px;border:1px solid rgba(255,255,255,.04)}
+  .mb{border:1px solid rgba(255,255,255,.06);color:rgba(255,255,255,.3);font-size:9px;letter-spacing:2px;padding:7px 14px;border-radius:20px;cursor:pointer;transition:all .25s;text-transform:lowercase;font-family:'Inter',sans-serif;display:flex;align-items:center;gap:6px;user-select:none}
+  .mb:hover{border-color:rgba(255,255,255,.18);color:rgba(255,255,255,.5);background:rgba(255,255,255,.02)}
+  .mb.on{border-color:rgba(255,200,100,.35);color:rgba(255,200,100,.7);background:rgba(255,200,100,.06)}
+  .mb .dot{width:8px;height:8px;border-radius:50%;flex-shrink:0;box-shadow:0 0 4px currentColor}
+  .mb .key{font-size:7px;color:rgba(255,255,255,.08);margin-left:2px}
 
-  #actBar{display:flex;gap:5px}
-  .ab{background:rgba(6,6,8,.7);border:1px solid rgba(255,255,255,.06);color:rgba(255,255,255,.2);font-size:9px;letter-spacing:2px;padding:5px 12px;border-radius:14px;cursor:pointer;transition:all .25s;text-transform:lowercase;font-family:'Inter',sans-serif}
-  .ab:hover{color:rgba(255,255,255,.4)}
+  #actBar{display:flex;gap:5px;padding:6px 10px;background:rgba(6,6,8,.85);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);border-radius:12px;border:1px solid rgba(255,255,255,.04)}
+  .ab{border:1px solid rgba(255,255,255,.06);color:rgba(255,255,255,.25);font-size:9px;letter-spacing:2px;padding:6px 14px;border-radius:16px;cursor:pointer;transition:all .25s;text-transform:lowercase;font-family:'Inter',sans-serif;user-select:none}
+  .ab:hover{color:rgba(255,255,255,.5);border-color:rgba(255,255,255,.15);background:rgba(255,255,255,.02)}
+  .ab.active{border-color:rgba(100,200,255,.3);color:rgba(100,200,255,.6);background:rgba(100,200,255,.05)}
 </style>
 </head>
 <body>
@@ -60,6 +66,8 @@
 </div>
 
 <canvas id="c"></canvas>
+<canvas id="glow"></canvas>
+<canvas id="cursor"></canvas>
 
 <div class="hud" id="topL">
   <div class="ht">sand</div>
@@ -74,18 +82,20 @@
   </div>
   <div class="cr">
     <span class="cl">speed</span>
-    <input class="cs" type="range" min="1" max="5" value="2" id="speedS">
-    <span class="cv" id="speedV">2</span>
+    <input class="cs" type="range" min="1" max="5" value="3" id="speedS">
+    <span class="cv" id="speedV">3</span>
   </div>
 </div>
 
 <div id="bottomUI">
   <div id="actBar">
+    <div class="ab" onclick="togglePause()" id="pauseBtn">pause</div>
     <div class="ab" onclick="clearAll()">clear</div>
     <div class="ab" onclick="preset('rain')">rain</div>
     <div class="ab" onclick="preset('volcano')">volcano</div>
     <div class="ab" onclick="preset('garden')">garden</div>
     <div class="ab" onclick="preset('aquarium')">aquarium</div>
+    <div class="ab" onclick="preset('warfare')">warfare</div>
   </div>
   <div id="matBar"></div>
 </div>
@@ -93,52 +103,54 @@
 <script>
 const canvas = document.getElementById('c');
 const ctx = canvas.getContext('2d');
+const glowCanvas = document.getElementById('glow');
+const glowCtx = glowCanvas.getContext('2d');
+const cursorCanvas = document.getElementById('cursor');
+const cursorCtx = cursorCanvas.getContext('2d');
 
 let GW, GH;
 const SCALE = 3;
 
 // === MATERIAL TYPES ===
-const EMPTY = 0;
-const SAND = 1;
-const WATER = 2;
-const STONE = 3;
-const FIRE = 4;
-const OIL = 5;
-const PLANT = 6;
-const ACID = 7;
-const LAVA = 8;
-const SALT = 9;
-const STEAM = 10;
-const GLASS = 11;
-const METAL = 12;
+const EMPTY = 0, SAND = 1, WATER = 2, STONE = 3, FIRE = 4, OIL = 5;
+const PLANT = 6, ACID = 7, LAVA = 8, SALT = 9, STEAM = 10, GLASS = 11, METAL = 12;
+const EMBER = 13; // hot metal
 
 const MATERIALS = [
-  { id: SAND,  name: 'sand',  col: [194,178,128], desc: 'falls, piles up' },
-  { id: WATER, name: 'water', col: [40,120,200],   desc: 'flows, evaporates' },
-  { id: STONE, name: 'stone', col: [90,85,80],     desc: 'solid, immovable' },
-  { id: FIRE,  name: 'fire',  col: [255,100,20],   desc: 'burns, spreads' },
-  { id: OIL,   name: 'oil',   col: [60,50,30],     desc: 'floats, flammable' },
-  { id: PLANT, name: 'plant', col: [40,160,50],     desc: 'grows upward' },
-  { id: ACID,  name: 'acid',  col: [140,255,40],    desc: 'dissolves most' },
-  { id: LAVA,  name: 'lava',  col: [220,80,10],     desc: 'melts, cools to stone' },
-  { id: SALT,  name: 'salt',  col: [220,220,210],   desc: 'dissolves in water' },
-  { id: METAL, name: 'metal', col: [160,165,175],   desc: 'solid, conducts heat' },
+  { id: SAND,  name: 'sand',  col: [194,178,128] },
+  { id: WATER, name: 'water', col: [40,120,200] },
+  { id: STONE, name: 'stone', col: [90,85,80] },
+  { id: FIRE,  name: 'fire',  col: [255,100,20] },
+  { id: OIL,   name: 'oil',   col: [80,65,30] },
+  { id: PLANT, name: 'plant', col: [40,160,50] },
+  { id: ACID,  name: 'acid',  col: [140,255,40] },
+  { id: LAVA,  name: 'lava',  col: [220,80,10] },
+  { id: SALT,  name: 'salt',  col: [220,220,210] },
+  { id: METAL, name: 'metal', col: [160,165,175] },
 ];
 
 let curMaterial = SAND;
 let brushSize = 3;
-let simSpeed = 2;
+let simSpeed = 3;
 let started = false;
+let paused = false;
 
 // Grid
-let grid;      // material type
-let updated;   // tick when last updated (prevents double-moves)
+let grid, life, updated;
 let tick = 0;
+
+// Hash for deterministic "randomness" per pixel
+function hash(x, y, s) {
+  let h = (x * 374761393 + y * 668265263 + s * 1274126177) >>> 0;
+  h = ((h ^ (h >> 13)) * 1274126177) >>> 0;
+  return (h >>> 0) / 4294967296;
+}
 
 // === INIT ===
 function initGrid() {
   const sz = GW * GH;
   grid = new Uint8Array(sz);
+  life = new Uint16Array(sz); // age / temperature for materials
   updated = new Uint32Array(sz);
   tick = 0;
 }
@@ -146,318 +158,321 @@ function initGrid() {
 function idx(x, y) { return y * GW + x; }
 function inBounds(x, y) { return x >= 0 && x < GW && y >= 0 && y < GH; }
 function get(x, y) { return inBounds(x, y) ? grid[idx(x,y)] : STONE; }
-function set(x, y, v) { if (inBounds(x,y)) { grid[idx(x,y)] = v; updated[idx(x,y)] = tick; } }
+function getLife(x, y) { return inBounds(x, y) ? life[idx(x,y)] : 0; }
+
+function set(x, y, v, l) {
+  if (!inBounds(x,y)) return;
+  const i = idx(x,y);
+  grid[i] = v;
+  life[i] = l !== undefined ? l : 0;
+  updated[i] = tick;
+}
+
 function moved(x, y) { return updated[idx(x,y)] === tick; }
 
 function swap(x1, y1, x2, y2) {
   if (!inBounds(x1,y1) || !inBounds(x2,y2)) return;
   const i1 = idx(x1,y1), i2 = idx(x2,y2);
-  const tmp = grid[i1];
-  grid[i1] = grid[i2];
-  grid[i2] = tmp;
-  updated[i1] = tick;
-  updated[i2] = tick;
+  const tg = grid[i1]; grid[i1] = grid[i2]; grid[i2] = tg;
+  const tl = life[i1]; life[i1] = life[i2]; life[i2] = tl;
+  updated[i1] = tick; updated[i2] = tick;
 }
 
 // === MATERIAL PROPERTIES ===
-function isLiquid(t) { return t === WATER || t === OIL || t === ACID || t === LAVA; }
-function isGas(t) { return t === FIRE || t === STEAM; }
-function isEmpty(t) { return t === EMPTY; }
-function isSolid(t) { return t === STONE || t === METAL || t === GLASS; }
-function canDisplace(t) { return isEmpty(t) || isGas(t); }
+function isLiquid(t) { return t===WATER||t===OIL||t===ACID||t===LAVA; }
+function isGas(t) { return t===FIRE||t===STEAM||t===EMBER; }
+function isEmpty(t) { return t===EMPTY; }
+function isSolid(t) { return t===STONE||t===METAL||t===GLASS; }
+function canDisplace(t) { return isEmpty(t)||isGas(t); }
 
 // === SIMULATION ===
 function simulate() {
   tick++;
-  // Alternate scan direction each tick to avoid bias
-  const leftToRight = tick % 2 === 0;
+  const lr = tick % 2 === 0;
 
   for (let y = GH - 1; y >= 0; y--) {
-    const startX = leftToRight ? 0 : GW - 1;
-    const endX = leftToRight ? GW : -1;
-    const stepX = leftToRight ? 1 : -1;
-
-    for (let x = startX; x !== endX; x += stepX) {
-      const i = idx(x, y);
-      if (moved(x, y)) continue;
-      const t = grid[i];
+    const sx = lr ? 0 : GW-1, ex = lr ? GW : -1, dx = lr ? 1 : -1;
+    for (let x = sx; x !== ex; x += dx) {
+      if (moved(x,y)) continue;
+      const t = grid[idx(x,y)];
       if (t === EMPTY) continue;
 
-      switch (t) {
-        case SAND: updateSand(x, y); break;
-        case WATER: updateWater(x, y); break;
-        case FIRE: updateFire(x, y); break;
-        case OIL: updateOil(x, y); break;
-        case PLANT: updatePlant(x, y); break;
-        case ACID: updateAcid(x, y); break;
-        case LAVA: updateLava(x, y); break;
-        case SALT: updateSalt(x, y); break;
-        case STEAM: updateSteam(x, y); break;
-        case METAL: updateMetal(x, y); break;
+      switch(t) {
+        case SAND:  updateSand(x,y); break;
+        case WATER: updateWater(x,y); break;
+        case FIRE:  updateFire(x,y); break;
+        case OIL:   updateOil(x,y); break;
+        case PLANT: updatePlant(x,y); break;
+        case ACID:  updateAcid(x,y); break;
+        case LAVA:  updateLava(x,y); break;
+        case SALT:  updateSalt(x,y); break;
+        case STEAM: updateSteam(x,y); break;
+        case METAL: updateMetal(x,y); break;
+        case EMBER: updateEmber(x,y); break;
       }
     }
   }
 }
 
+// --- Sand ---
 function updateSand(x, y) {
-  const below = get(x, y+1);
-  if (canDisplace(below) || isLiquid(below)) {
-    swap(x, y, x, y+1);
-    return;
-  }
-  // Slide diagonally
-  const dl = get(x-1, y+1);
-  const dr = get(x+1, y+1);
-  const canL = canDisplace(dl) || isLiquid(dl);
-  const canR = canDisplace(dr) || isLiquid(dr);
-  if (canL && canR) {
-    swap(x, y, Math.random() < 0.5 ? x-1 : x+1, y+1);
-  } else if (canL) {
-    swap(x, y, x-1, y+1);
-  } else if (canR) {
-    swap(x, y, x+1, y+1);
-  }
+  const b = get(x,y+1);
+  if (canDisplace(b)||isLiquid(b)) { swap(x,y,x,y+1); return; }
+  const dl = get(x-1,y+1), dr = get(x+1,y+1);
+  const cL = canDisplace(dl)||isLiquid(dl), cR = canDisplace(dr)||isLiquid(dr);
+  if (cL&&cR) swap(x,y,hash(x,y,tick)<.5?x-1:x+1,y+1);
+  else if (cL) swap(x,y,x-1,y+1);
+  else if (cR) swap(x,y,x+1,y+1);
 }
 
+// --- Water ---
 function updateWater(x, y) {
-  const below = get(x, y+1);
-  if (isEmpty(below) || isGas(below)) {
-    swap(x, y, x, y+1);
-    return;
+  // Increment life for age-based color
+  const i = idx(x,y);
+  if (life[i] < 500) life[i]++;
+
+  const b = get(x,y+1);
+  if (isEmpty(b)||isGas(b)) { swap(x,y,x,y+1); return; }
+  // Diagonal down
+  const dl = get(x-1,y+1), dr = get(x+1,y+1);
+  const cL = isEmpty(dl)||isGas(dl), cR = isEmpty(dr)||isGas(dr);
+  if (cL&&cR) { swap(x,y,hash(x,y,tick)<.5?x-1:x+1,y+1); return; }
+  if (cL) { swap(x,y,x-1,y+1); return; }
+  if (cR) { swap(x,y,x+1,y+1); return; }
+  // Horizontal spread with momentum — water spreads further
+  const spread = 2 + Math.floor(hash(x,y,tick)*3); // spread 2-4 cells
+  const dir = hash(x,y,tick+7) < .5 ? -1 : 1;
+  for (let s = 1; s <= spread; s++) {
+    const nx = x + dir*s;
+    const n = get(nx, y);
+    if (isEmpty(n)||isGas(n)) { swap(x,y,nx,y); return; }
+    if (!isEmpty(n)&&!isGas(n)) break;
   }
-  // Diagonal
-  const dl = get(x-1, y+1);
-  const dr = get(x+1, y+1);
-  const canL = isEmpty(dl) || isGas(dl);
-  const canR = isEmpty(dr) || isGas(dr);
-  if (canL && canR) {
-    swap(x, y, Math.random() < 0.5 ? x-1 : x+1, y+1);
-    return;
-  }
-  if (canL) { swap(x, y, x-1, y+1); return; }
-  if (canR) { swap(x, y, x+1, y+1); return; }
-  // Spread sideways
-  const sl = get(x-1, y);
-  const sr = get(x+1, y);
-  const sideL = isEmpty(sl) || isGas(sl);
-  const sideR = isEmpty(sr) || isGas(sr);
-  if (sideL && sideR) {
-    swap(x, y, Math.random() < 0.5 ? x-1 : x+1, y);
-  } else if (sideL) {
-    swap(x, y, x-1, y);
-  } else if (sideR) {
-    swap(x, y, x+1, y);
+  // Try other direction
+  for (let s = 1; s <= spread; s++) {
+    const nx = x - dir*s;
+    const n = get(nx, y);
+    if (isEmpty(n)||isGas(n)) { swap(x,y,nx,y); return; }
+    if (!isEmpty(n)&&!isGas(n)) break;
   }
 }
 
+// --- Fire ---
 function updateFire(x, y) {
-  // Fire rises and dies
-  if (Math.random() < 0.15) {
-    set(x, y, EMPTY);
-    return;
-  }
-  // Rise
-  const above = get(x, y-1);
-  if (isEmpty(above)) {
-    swap(x, y, x, y-1);
-  } else {
-    // Spread sideways/up
-    const dirs = [[-1,-1],[0,-1],[1,-1],[-1,0],[1,0]];
-    const d = dirs[~~(Math.random()*dirs.length)];
-    if (isEmpty(get(x+d[0], y+d[1]))) {
-      if (Math.random() < 0.3) swap(x, y, x+d[0], y+d[1]);
-    }
-  }
+  const i = idx(x,y);
+  life[i]++;
+  // Fire dies based on age
+  if (life[i] > 20 + hash(x,y,0)*40) { set(x,y,EMPTY); return; }
+  // Rise with turbulence
+  const turbX = hash(x,y,tick) < .3 ? -1 : hash(x,y,tick) > .7 ? 1 : 0;
+  if (isEmpty(get(x+turbX,y-1))) { swap(x,y,x+turbX,y-1); }
+  else if (isEmpty(get(x,y-1))) { swap(x,y,x,y-1); }
   // Ignite neighbors
-  const neighbors = [[-1,0],[1,0],[0,-1],[0,1]];
-  for (const [dx, dy] of neighbors) {
-    const nx = x+dx, ny = y+dy;
-    const n = get(nx, ny);
-    if (n === OIL && Math.random() < 0.4) set(nx, ny, FIRE);
-    if (n === PLANT && Math.random() < 0.15) set(nx, ny, FIRE);
-    if (n === WATER) { set(x, y, STEAM); return; }
+  for (const [dx,dy] of [[-1,0],[1,0],[0,-1],[0,1],[-1,-1],[1,-1]]) {
+    const nx=x+dx, ny=y+dy, n=get(nx,ny);
+    if (n===OIL && hash(nx,ny,tick)<.45) set(nx,ny,FIRE);
+    if (n===PLANT && hash(nx,ny,tick)<.12) set(nx,ny,FIRE);
+    if (n===WATER) { set(x,y,STEAM); return; }
+    if (n===METAL && hash(nx,ny,tick)<.08) { set(nx,ny,EMBER,100); }
   }
 }
 
+// --- Oil ---
 function updateOil(x, y) {
-  // Oil is lighter than water — floats
-  const below = get(x, y+1);
-  if (isEmpty(below) || isGas(below)) {
-    swap(x, y, x, y+1);
-    return;
-  }
-  if (below === WATER) {
-    // Float: swap with water below
-    swap(x, y, x, y+1);
-    return;
-  }
+  const b = get(x,y+1);
+  if (isEmpty(b)||isGas(b)) { swap(x,y,x,y+1); return; }
+  if (b===WATER) { swap(x,y,x,y+1); return; } // float
   // Diagonal
-  const dl = get(x-1, y+1);
-  const dr = get(x+1, y+1);
-  if ((isEmpty(dl) || dl === WATER) && (isEmpty(dr) || dr === WATER)) {
-    swap(x, y, Math.random() < 0.5 ? x-1 : x+1, y+1);
-  } else if (isEmpty(dl) || dl === WATER) {
-    swap(x, y, x-1, y+1);
-  } else if (isEmpty(dr) || dr === WATER) {
-    swap(x, y, x+1, y+1);
-  } else {
+  const dl = get(x-1,y+1), dr = get(x+1,y+1);
+  const cL = isEmpty(dl)||dl===WATER, cR = isEmpty(dr)||dr===WATER;
+  if (cL&&cR) swap(x,y,hash(x,y,tick)<.5?x-1:x+1,y+1);
+  else if (cL) swap(x,y,x-1,y+1);
+  else if (cR) swap(x,y,x+1,y+1);
+  else {
     // Spread sideways
-    const sl = get(x-1, y);
-    const sr = get(x+1, y);
-    if ((isEmpty(sl) || sl === WATER) && (isEmpty(sr) || sr === WATER)) {
-      swap(x, y, Math.random() < 0.5 ? x-1 : x+1, y);
-    } else if (isEmpty(sl) || sl === WATER) {
-      swap(x, y, x-1, y);
-    } else if (isEmpty(sr) || sr === WATER) {
-      swap(x, y, x+1, y);
-    }
+    const sl = get(x-1,y), sr = get(x+1,y);
+    const sL = isEmpty(sl)||sl===WATER, sR = isEmpty(sr)||sr===WATER;
+    if (sL&&sR) swap(x,y,hash(x,y,tick)<.5?x-1:x+1,y);
+    else if (sL) swap(x,y,x-1,y);
+    else if (sR) swap(x,y,x+1,y);
   }
 }
 
+// --- Plant (phototropism) ---
 function updatePlant(x, y) {
-  // Grow upward occasionally
-  if (Math.random() < 0.005) {
-    const above = get(x, y-1);
-    if (isEmpty(above)) {
-      set(x, y-1, PLANT);
-      return;
+  const i = idx(x,y);
+  life[i]++;
+
+  // Grow TOWARD LIGHT — check which direction has more open sky
+  if (hash(x,y,tick) < 0.008) {
+    let skyL = 0, skyR = 0, skyU = 0;
+    for (let dy = 1; dy <= 6; dy++) {
+      if (isEmpty(get(x,y-dy))) skyU++;
+      if (isEmpty(get(x-1,y-dy))) skyL++;
+      if (isEmpty(get(x+1,y-dy))) skyR++;
+    }
+    // Prefer upward, bias toward open sky
+    if (skyU >= skyL && skyU >= skyR && isEmpty(get(x,y-1))) {
+      set(x,y-1,PLANT);
+    } else if (skyL > skyR && isEmpty(get(x-1,y-1))) {
+      set(x-1,y-1,PLANT);
+    } else if (skyR > skyL && isEmpty(get(x+1,y-1))) {
+      set(x+1,y-1,PLANT);
+    } else if (isEmpty(get(x,y-1))) {
+      set(x,y-1,PLANT);
     }
   }
-  // Grow sideways rarely
-  if (Math.random() < 0.002) {
-    const side = Math.random() < 0.5 ? -1 : 1;
-    if (isEmpty(get(x+side, y))) {
-      set(x+side, y, PLANT);
-    }
+  // Branch sideways occasionally
+  if (hash(x,y,tick+3) < 0.002 && life[i] > 30) {
+    const side = hash(x,y,tick+5) < .5 ? -1 : 1;
+    if (isEmpty(get(x+side,y))) set(x+side,y,PLANT);
   }
-  // Grow with water contact
-  const neighbors = [[-1,0],[1,0],[0,-1],[0,1]];
-  for (const [dx, dy] of neighbors) {
-    if (get(x+dx, y+dy) === WATER && Math.random() < 0.02) {
-      set(x+dx, y+dy, PLANT);
+  // Grow when touching water
+  for (const [dx,dy] of [[-1,0],[1,0],[0,-1],[0,1]]) {
+    if (get(x+dx,y+dy)===WATER && hash(x,y,tick+1)<0.025) {
+      set(x+dx,y+dy,PLANT);
     }
   }
 }
 
+// --- Acid ---
 function updateAcid(x, y) {
-  // Acid falls like water
-  const below = get(x, y+1);
-  if (isEmpty(below) || isGas(below)) {
-    swap(x, y, x, y+1);
-    return;
-  }
-  // Dissolve neighbors
-  const neighbors = [[-1,0],[1,0],[0,1],[0,-1]];
-  for (const [dx, dy] of neighbors) {
-    const nx = x+dx, ny = y+dy;
-    const n = get(nx, ny);
-    // Dissolves sand, plant, metal, salt
-    if ((n === SAND || n === PLANT || n === METAL || n === SALT || n === OIL) && Math.random() < 0.1) {
-      set(nx, ny, EMPTY);
-      if (Math.random() < 0.4) set(x, y, EMPTY); // acid consumed
+  // Flow like water but slightly thicker
+  const b = get(x,y+1);
+  if (isEmpty(b)||isGas(b)) { swap(x,y,x,y+1); return; }
+
+  // Dissolve on contact (any neighbor)
+  for (const [dx,dy] of [[-1,0],[1,0],[0,1],[0,-1],[0,0]]) {
+    if (dx===0&&dy===0) continue;
+    const nx=x+dx, ny=y+dy, n=get(nx,ny);
+    if ((n===SAND||n===PLANT||n===METAL||n===SALT||n===OIL) && hash(nx,ny,tick)<.12) {
+      set(nx,ny,EMPTY);
+      if (hash(x,y,tick+2)<.45) set(x,y,EMPTY); // acid consumed
       return;
     }
-    // Weakly dissolves stone
-    if (n === STONE && Math.random() < 0.01) {
-      set(nx, ny, EMPTY);
-      set(x, y, EMPTY);
-      return;
+    if (n===STONE && hash(nx,ny,tick)<.015) {
+      set(nx,ny,EMPTY); set(x,y,EMPTY); return;
+    }
+    if (n===GLASS && hash(nx,ny,tick)<.005) {
+      set(nx,ny,EMPTY); set(x,y,EMPTY); return;
     }
   }
+  // Diagonal down
+  const dl = get(x-1,y+1), dr = get(x+1,y+1);
+  const cL = isEmpty(dl)||isGas(dl), cR = isEmpty(dr)||isGas(dr);
+  if (cL&&cR) { swap(x,y,hash(x,y,tick)<.5?x-1:x+1,y+1); return; }
+  if (cL) { swap(x,y,x-1,y+1); return; }
+  if (cR) { swap(x,y,x+1,y+1); return; }
   // Spread sideways
-  const sl = get(x-1, y);
-  const sr = get(x+1, y);
-  if (isEmpty(sl) && isEmpty(sr)) {
-    swap(x, y, Math.random() < 0.5 ? x-1 : x+1, y);
-  } else if (isEmpty(sl)) {
-    swap(x, y, x-1, y);
-  } else if (isEmpty(sr)) {
-    swap(x, y, x+1, y);
-  }
+  const sl = get(x-1,y), sr = get(x+1,y);
+  if (isEmpty(sl)&&isEmpty(sr)) swap(x,y,hash(x,y,tick)<.5?x-1:x+1,y);
+  else if (isEmpty(sl)) swap(x,y,x-1,y);
+  else if (isEmpty(sr)) swap(x,y,x+1,y);
 }
 
+// --- Lava ---
 function updateLava(x, y) {
-  // Lava flows slowly like thick liquid
-  if (Math.random() < 0.3) {
-    const below = get(x, y+1);
-    if (isEmpty(below) || isGas(below)) {
-      swap(x, y, x, y+1);
-      return;
-    }
-    if (below === WATER) {
-      // Lava + water = stone + steam
-      set(x, y, STONE);
-      set(x, y+1, STEAM);
-      return;
-    }
+  const i = idx(x,y);
+  // Glow pulses
+  life[i] = (life[i] + 1) % 200;
+
+  // Slow viscous flow
+  if (hash(x,y,tick) < .35) {
+    const b = get(x,y+1);
+    if (isEmpty(b)||isGas(b)) { swap(x,y,x,y+1); return; }
+    if (b===WATER) { set(x,y,STONE); set(x,y+1,STEAM); return; }
   }
-  // Melt neighbors
-  const neighbors = [[-1,0],[1,0],[0,-1],[0,1]];
-  for (const [dx, dy] of neighbors) {
-    const nx = x+dx, ny = y+dy;
-    const n = get(nx, ny);
-    if (n === SAND && Math.random() < 0.03) { set(nx, ny, GLASS); }
-    if (n === PLANT && Math.random() < 0.2) { set(nx, ny, FIRE); }
-    if (n === OIL && Math.random() < 0.3) { set(nx, ny, FIRE); }
-    if (n === WATER) { set(x, y, STONE); set(nx, ny, STEAM); return; }
-    if (n === METAL && Math.random() < 0.005) { set(nx, ny, LAVA); }
+  // Melt / ignite neighbors
+  for (const [dx,dy] of [[-1,0],[1,0],[0,-1],[0,1]]) {
+    const nx=x+dx, ny=y+dy, n=get(nx,ny);
+    if (n===SAND && hash(nx,ny,tick)<.04) set(nx,ny,GLASS);
+    if (n===PLANT && hash(nx,ny,tick)<.25) set(nx,ny,FIRE);
+    if (n===OIL && hash(nx,ny,tick)<.35) set(nx,ny,FIRE);
+    if (n===WATER) { set(x,y,STONE); set(nx,ny,STEAM); return; }
+    if (n===METAL && hash(nx,ny,tick)<.02) set(nx,ny,EMBER,150);
+    if (n===SALT && hash(nx,ny,tick)<.1) set(nx,ny,EMPTY);
   }
-  // Cool slowly
-  if (Math.random() < 0.002) { set(x, y, STONE); return; }
-  // Spread sideways
-  if (Math.random() < 0.2) {
-    const side = Math.random() < 0.5 ? -1 : 1;
-    const s = get(x+side, y);
-    if (isEmpty(s) || isGas(s)) swap(x, y, x+side, y);
+  // Cool very slowly
+  if (hash(x,y,tick+1) < .0015) { set(x,y,STONE); return; }
+  // Sideways spread
+  if (hash(x,y,tick+2) < .2) {
+    const s = hash(x,y,tick+3)<.5?-1:1;
+    const n = get(x+s,y);
+    if (isEmpty(n)||isGas(n)) swap(x,y,x+s,y);
   }
 }
 
+// --- Salt ---
 function updateSalt(x, y) {
+  // Check for water contact from ANY direction first
+  for (const [dx,dy] of [[-1,0],[1,0],[0,-1],[0,1]]) {
+    if (get(x+dx,y+dy)===WATER && hash(x,y,tick)<.15) {
+      set(x,y,WATER); return; // dissolve
+    }
+  }
   // Falls like sand
-  const below = get(x, y+1);
-  if (isEmpty(below) || isGas(below)) {
-    swap(x, y, x, y+1);
-    return;
-  }
-  if (below === WATER) {
-    // Dissolve in water
-    set(x, y, WATER);
-    return;
-  }
-  // Slide diagonal
-  const dl = get(x-1, y+1);
-  const dr = get(x+1, y+1);
-  const canL = isEmpty(dl);
-  const canR = isEmpty(dr);
-  if (canL && canR) swap(x, y, Math.random() < 0.5 ? x-1 : x+1, y+1);
-  else if (canL) swap(x, y, x-1, y+1);
-  else if (canR) swap(x, y, x+1, y+1);
+  const b = get(x,y+1);
+  if (canDisplace(b)||isLiquid(b)) { swap(x,y,x,y+1); return; }
+  const dl = get(x-1,y+1), dr = get(x+1,y+1);
+  const cL = isEmpty(dl), cR = isEmpty(dr);
+  if (cL&&cR) swap(x,y,hash(x,y,tick)<.5?x-1:x+1,y+1);
+  else if (cL) swap(x,y,x-1,y+1);
+  else if (cR) swap(x,y,x+1,y+1);
 }
 
+// --- Steam ---
 function updateSteam(x, y) {
-  // Steam rises
-  if (Math.random() < 0.05) {
-    set(x, y, EMPTY); // dissipate
-    return;
+  const i = idx(x,y);
+  life[i]++;
+  // Dissipate
+  if (life[i] > 80 + hash(x,y,0)*60) { set(x,y,EMPTY); return; }
+  if (y <= 1) { set(x,y,EMPTY); return; }
+  // Rise with turbulence
+  const turbX = hash(x,y,tick) < .35 ? -1 : hash(x,y,tick) > .65 ? 1 : 0;
+  if (isEmpty(get(x+turbX,y-1))) swap(x,y,x+turbX,y-1);
+  else if (isEmpty(get(x,y-1))) swap(x,y,x,y-1);
+  else {
+    const s = hash(x,y,tick+1)<.5?-1:1;
+    if (isEmpty(get(x+s,y))) swap(x,y,x+s,y);
   }
-  if (y <= 1) { set(x, y, EMPTY); return; } // top of screen
-  const above = get(x, y-1);
-  if (isEmpty(above)) {
-    swap(x, y, x, y-1);
-  } else {
-    const side = Math.random() < 0.5 ? -1 : 1;
-    if (isEmpty(get(x+side, y-1))) swap(x, y, x+side, y-1);
-    else if (isEmpty(get(x+side, y))) swap(x, y, x+side, y);
-  }
-  // Condense back to water occasionally
-  if (Math.random() < 0.003 && y < GH * 0.2) {
-    set(x, y, WATER);
+  // Condense back to water when cooled
+  if (life[i] > 60 && hash(x,y,tick+5) < .008) set(x,y,WATER);
+}
+
+// --- Metal (conducts heat) ---
+function updateMetal(x, y) {
+  // Check for heat sources nearby
+  for (const [dx,dy] of [[-1,0],[1,0],[0,-1],[0,1]]) {
+    const n = get(x+dx,y+dy);
+    if ((n===FIRE||n===LAVA) && hash(x,y,tick)<.06) {
+      set(x,y,EMBER,120);
+      return;
+    }
+    // Heat conducts from other hot metal
+    if (n===EMBER && hash(x,y,tick)<.04) {
+      set(x,y,EMBER,80);
+      return;
+    }
   }
 }
 
-function updateMetal(x, y) {
-  // Metal doesn't move but conducts heat (lava nearby heats it)
-  // Already handled by lava's neighbor check
+// --- Ember (hot metal) ---
+function updateEmber(x, y) {
+  const i = idx(x,y);
+  life[i]--;
+  // Cool down → revert to metal
+  if (life[i] <= 0) { grid[i] = METAL; life[i] = 0; return; }
+  // Ignite flammable neighbors
+  for (const [dx,dy] of [[-1,0],[1,0],[0,-1],[0,1]]) {
+    const nx=x+dx, ny=y+dy, n=get(nx,ny);
+    if (n===OIL && hash(nx,ny,tick)<.2) set(nx,ny,FIRE);
+    if (n===PLANT && hash(nx,ny,tick)<.08) set(nx,ny,FIRE);
+    if (n===WATER) { life[i] = Math.max(0, life[i]-20); set(nx,ny,STEAM); return; }
+    // Conduct heat to adjacent metal
+    if (n===METAL && hash(nx,ny,tick)<.03 && life[i]>30) {
+      set(nx,ny,EMBER,life[i]-20);
+    }
+  }
 }
 
 // === RENDERING ===
@@ -465,59 +480,187 @@ function draw() {
   const img = ctx.createImageData(GW, GH);
   const d = img.data;
 
+  // Clear glow
+  glowCtx.clearRect(0,0,GW,GH);
+
+  let hasGlow = false;
+
   for (let y = 0; y < GH; y++) {
     for (let x = 0; x < GW; x++) {
-      const i = idx(x, y);
+      const i = idx(x,y);
       const t = grid[i];
       const pi = i * 4;
 
       if (t === EMPTY) {
-        d[pi] = 6; d[pi+1] = 6; d[pi+2] = 8; d[pi+3] = 255;
+        // Subtle dark gradient — darker at bottom like cave
+        const depth = y / GH;
+        d[pi] = 6; d[pi+1] = 6; d[pi+2] = 8 + depth*3|0; d[pi+3] = 255;
         continue;
       }
 
       let r, g, b;
-      // Add slight variation for organic look
-      const v = ((x * 7 + y * 13 + tick) % 17) / 17;
-      const jit = (v - 0.5) * 20;
+      const v = hash(x, y, 0); // stable per-pixel variation
+      const tv = hash(x, y, tick >> 2); // slow time variation
+      const age = life[i];
 
-      switch (t) {
-        case SAND:
-          r = 194 + jit; g = 178 + jit*0.8; b = 128 + jit*0.5; break;
-        case WATER:
-          r = 30 + v*20; g = 100 + v*40; b = 190 + v*30; break;
-        case STONE:
-          r = 80 + jit*0.5; g = 78 + jit*0.5; b = 75 + jit*0.5; break;
-        case FIRE:
-          r = 255; g = 60 + Math.random()*140; b = Math.random()*40; break;
-        case OIL:
-          r = 55 + jit*0.3; g = 45 + jit*0.3; b = 25 + jit*0.2; break;
-        case PLANT:
-          r = 30 + v*25; g = 130 + v*60; b = 35 + v*25; break;
-        case ACID:
-          r = 120 + v*40; g = 240 + v*15; b = 30 + v*20; break;
-        case LAVA:
-          r = 200 + Math.random()*55; g = 50 + Math.random()*60; b = Math.random()*20; break;
-        case SALT:
-          r = 215 + jit*0.3; g = 215 + jit*0.3; b = 205 + jit*0.3; break;
-        case STEAM:
-          r = 150 + v*40; g = 160 + v*40; b = 180 + v*30; break;
-        case GLASS:
-          r = 140 + jit; g = 180 + jit; b = 200 + jit; break;
-        case METAL:
-          r = 155 + jit*0.4; g = 160 + jit*0.4; b = 170 + jit*0.4; break;
-        default:
-          r = 255; g = 0; b = 255;
+      switch(t) {
+        case SAND: {
+          const shade = v * 30 - 15;
+          r = 200+shade; g = 180+shade*0.8; b = 125+shade*0.4;
+          // Darker grains
+          if (v > .85) { r -= 25; g -= 20; b -= 10; }
+          break;
+        }
+        case WATER: {
+          const depth = 0;
+          // Check how deep underwater (how many water above)
+          let wd = 0;
+          for (let dy = -1; dy >= -8; dy--) { if (get(x,y+dy)===WATER) wd++; else break; }
+          const df = Math.min(wd/8, 1);
+          r = 25-df*15+tv*10; g = 90+tv*20-df*20; b = 190+tv*20-df*30;
+          // Surface shimmer
+          if (get(x,y-1)!==WATER && isEmpty(get(x,y-1))) {
+            r += 30; g += 40; b += 30;
+          }
+          break;
+        }
+        case STONE: {
+          const shade = v*20-10;
+          r = 75+shade; g = 73+shade; b = 70+shade;
+          // Occasional lighter speckles
+          if (v > .92) { r += 15; g += 13; b += 10; }
+          break;
+        }
+        case FIRE: {
+          // Age-based fire: young=white/yellow, old=red/dark
+          const a = Math.min(age/40, 1);
+          r = 255;
+          g = 220 - a*180 + tv*30;
+          b = 150 - a*140 + tv*20;
+          if (a > .7) { r = 200+tv*55; g = 40+tv*30; b = tv*15; }
+          hasGlow = true;
+          break;
+        }
+        case OIL: {
+          // Dark iridescent
+          const shade = v*15-7;
+          r = 70+shade; g = 55+shade; b = 25+shade;
+          // Rainbow sheen
+          if (v > .7) { r += 10; b += 15; }
+          break;
+        }
+        case PLANT: {
+          // Age-based: young=bright green, old=darker
+          const a = Math.min(age/200, 1);
+          r = 25+v*20-a*10; g = 140+v*40-a*30; b = 30+v*15;
+          // Tips are brighter
+          if (isEmpty(get(x,y-1))) { r += 15; g += 30; b += 10; }
+          break;
+        }
+        case ACID: {
+          r = 100+tv*40; g = 230+tv*25; b = 20+tv*20;
+          // Bubbling glow
+          if (tv > .7) { r += 30; g += 15; }
+          hasGlow = true;
+          break;
+        }
+        case LAVA: {
+          // Pulsing glow based on life
+          const pulse = Math.sin(age * 0.15 + v*6.28) * .5 + .5;
+          r = 200+pulse*55; g = 40+pulse*50+v*20; b = 5+pulse*15;
+          // Brighter cracks
+          if (v > .8) { r = 255; g = 180; b = 40; }
+          hasGlow = true;
+          break;
+        }
+        case SALT: {
+          const shade = v*10-5;
+          r = 225+shade; g = 225+shade; b = 218+shade;
+          // Crystalline sparkle
+          if (v > .9) { r = 245; g = 245; b = 240; }
+          break;
+        }
+        case STEAM: {
+          const a = Math.min(age/100, 1);
+          const fade = 1 - a*0.6;
+          r = (140+tv*30)*fade; g = (150+tv*30)*fade; b = (180+tv*20)*fade;
+          break;
+        }
+        case GLASS: {
+          // Semi-transparent crystalline
+          r = 150+v*30; g = 190+v*20; b = 210+v*20;
+          // Bright reflections
+          if (v > .85) { r = 220; g = 240; b = 250; }
+          break;
+        }
+        case METAL: {
+          const shade = v*15-7;
+          r = 150+shade; g = 155+shade; b = 168+shade;
+          // Brushed metal streaks
+          if (hash(x,y*3,0) > .8) { r += 12; g += 12; b += 12; }
+          break;
+        }
+        case EMBER: {
+          // Hot metal — orange to red based on temperature (life)
+          const heat = Math.min(age/150, 1);
+          r = 160+heat*95; g = 155-heat*100+Math.sin(tick*.1+v*6)*10; b = 168-heat*150;
+          if (heat > .5) { r = 255; g = 100+heat*40; b = 20; }
+          hasGlow = true;
+          break;
+        }
+        default: r=255;g=0;b=255;
       }
 
-      d[pi] = Math.max(0, Math.min(255, ~~r));
-      d[pi+1] = Math.max(0, Math.min(255, ~~g));
-      d[pi+2] = Math.max(0, Math.min(255, ~~b));
+      d[pi]   = Math.max(0,Math.min(255,r|0));
+      d[pi+1] = Math.max(0,Math.min(255,g|0));
+      d[pi+2] = Math.max(0,Math.min(255,b|0));
       d[pi+3] = 255;
+
+      // Add to glow buffer for emissive materials
+      if (t===FIRE||t===LAVA||t===EMBER||t===ACID) {
+        const gr = d[pi], gg = d[pi+1], gb = d[pi+2];
+        const gi = t===ACID ? .15 : t===EMBER ? .3 : .5;
+        glowCtx.fillStyle = `rgba(${gr},${gg},${gb},${gi})`;
+        glowCtx.fillRect(x-1,y-1,3,3);
+      }
     }
   }
 
   ctx.putImageData(img, 0, 0);
+
+  // Apply blur to glow layer for bloom effect
+  if (hasGlow) {
+    glowCtx.filter = 'blur(2px)';
+    glowCtx.drawImage(glowCanvas, 0, 0);
+    glowCtx.filter = 'none';
+  }
+}
+
+// === BRUSH CURSOR ===
+let mouseX = -100, mouseY = -100;
+
+function drawCursor() {
+  cursorCtx.clearRect(0, 0, GW, GH);
+  if (!started || mouseX < 0) return;
+  const gx = mouseX / SCALE, gy = mouseY / SCALE;
+  const r = brushSize + 0.5;
+
+  cursorCtx.strokeStyle = 'rgba(255,255,255,.25)';
+  cursorCtx.lineWidth = 0.5;
+  cursorCtx.beginPath();
+  cursorCtx.arc(gx, gy, r, 0, Math.PI*2);
+  cursorCtx.stroke();
+
+  // Dot at center
+  const mat = MATERIALS.find(m => m.id === curMaterial);
+  if (mat) {
+    cursorCtx.fillStyle = `rgb(${mat.col[0]},${mat.col[1]},${mat.col[2]})`;
+  } else {
+    cursorCtx.fillStyle = 'rgba(255,255,255,.3)';
+  }
+  cursorCtx.beginPath();
+  cursorCtx.arc(gx, gy, 0.8, 0, Math.PI*2);
+  cursorCtx.fill();
 }
 
 // === INTERACTION ===
@@ -527,40 +670,29 @@ let lastMx = -1, lastMy = -1;
 function paint(ex, ey) {
   const gx = Math.floor(ex / SCALE);
   const gy = Math.floor(ey / SCALE);
-
-  // Interpolate from last position for smooth strokes
   if (lastMx >= 0) {
-    const dx = gx - lastMx;
-    const dy = gy - lastMy;
-    const steps = Math.max(Math.abs(dx), Math.abs(dy));
+    const dx = gx-lastMx, dy = gy-lastMy;
+    const steps = Math.max(Math.abs(dx),Math.abs(dy));
     for (let s = 0; s <= steps; s++) {
-      const t = steps > 0 ? s / steps : 0;
-      const px = Math.round(lastMx + dx * t);
-      const py = Math.round(lastMy + dy * t);
-      paintAt(px, py);
+      const t = steps>0 ? s/steps : 0;
+      paintAt(Math.round(lastMx+dx*t), Math.round(lastMy+dy*t));
     }
   } else {
     paintAt(gx, gy);
   }
-
   lastMx = gx; lastMy = gy;
 }
 
 function paintAt(gx, gy) {
   for (let dy = -brushSize; dy <= brushSize; dy++) {
     for (let dx = -brushSize; dx <= brushSize; dx++) {
-      if (dx*dx + dy*dy > brushSize*brushSize) continue;
-      const px = gx + dx, py = gy + dy;
-      if (!inBounds(px, py)) continue;
-
+      if (dx*dx+dy*dy > brushSize*brushSize) continue;
+      const px = gx+dx, py = gy+dy;
+      if (!inBounds(px,py)) continue;
       if (curMaterial === EMPTY) {
-        // Eraser
-        set(px, py, EMPTY);
-      } else if (get(px, py) === EMPTY) {
-        // Only place in empty cells (with some randomness for natural look)
-        if (Math.random() < 0.7) {
-          set(px, py, curMaterial);
-        }
+        set(px,py,EMPTY);
+      } else if (get(px,py) === EMPTY) {
+        if (hash(px,py,tick) < 0.75) set(px,py,curMaterial);
       }
     }
   }
@@ -571,38 +703,41 @@ canvas.addEventListener('mousedown', e => {
   paint(e.clientX, e.clientY);
 });
 canvas.addEventListener('mousemove', e => {
+  mouseX = e.clientX; mouseY = e.clientY;
   if (mouseDown) paint(e.clientX, e.clientY);
 });
 canvas.addEventListener('mouseup', () => { mouseDown = false; lastMx = -1; });
-canvas.addEventListener('mouseleave', () => { mouseDown = false; lastMx = -1; });
+canvas.addEventListener('mouseleave', () => { mouseDown = false; lastMx = -1; mouseX = -100; });
 
 canvas.addEventListener('touchstart', e => {
   e.preventDefault(); mouseDown = true; lastMx = -1; lastMy = -1;
-  paint(e.touches[0].clientX, e.touches[0].clientY);
+  const t = e.touches[0];
+  mouseX = t.clientX; mouseY = t.clientY;
+  paint(t.clientX, t.clientY);
 }, {passive:false});
 canvas.addEventListener('touchmove', e => {
   e.preventDefault();
-  if (mouseDown) paint(e.touches[0].clientX, e.touches[0].clientY);
+  const t = e.touches[0];
+  mouseX = t.clientX; mouseY = t.clientY;
+  if (mouseDown) paint(t.clientX, t.clientY);
 }, {passive:false});
-canvas.addEventListener('touchend', () => { mouseDown = false; lastMx = -1; });
+canvas.addEventListener('touchend', () => { mouseDown = false; lastMx = -1; mouseX = -100; });
 
 // === UI ===
 function buildMatBar() {
   const bar = document.getElementById('matBar');
   bar.innerHTML = '';
-
-  // Eraser first
+  // Eraser
   const eb = document.createElement('div');
-  eb.className = 'mb' + (curMaterial === EMPTY ? ' on' : '');
-  eb.innerHTML = '<div class="dot" style="background:#222"></div>erase';
+  eb.className = 'mb'+(curMaterial===EMPTY?' on':'');
+  eb.innerHTML = '<div class="dot" style="background:rgba(255,255,255,.1)"></div>erase<span class="key">0</span>';
   eb.onclick = () => selectMat(EMPTY);
   bar.appendChild(eb);
 
-  MATERIALS.forEach(m => {
+  MATERIALS.forEach((m,i) => {
     const b = document.createElement('div');
-    b.className = 'mb' + (curMaterial === m.id ? ' on' : '');
-    b.innerHTML = `<div class="dot" style="background:rgb(${m.col[0]},${m.col[1]},${m.col[2]})"></div>${m.name}`;
-    b.title = m.desc;
+    b.className = 'mb'+(curMaterial===m.id?' on':'');
+    b.innerHTML = `<div class="dot" style="background:rgb(${m.col[0]},${m.col[1]},${m.col[2]})"></div>${m.name}<span class="key">${i+1}</span>`;
     b.onclick = () => selectMat(m.id);
     bar.appendChild(b);
   });
@@ -611,23 +746,29 @@ function buildMatBar() {
 function selectMat(id) {
   curMaterial = id;
   document.querySelectorAll('#matBar .mb').forEach((b, i) => {
-    b.classList.toggle('on', i === 0 ? id === EMPTY : MATERIALS[i-1].id === id);
+    b.classList.toggle('on', i===0 ? id===EMPTY : MATERIALS[i-1].id===id);
   });
 }
 
-// Keyboard shortcuts: 0-9 for materials
+// Keyboard
 addEventListener('keydown', e => {
-  if (!started) return;
+  if (!started) { if (e.key==='Enter') start(); return; }
   const k = e.key;
-  if (k === '0' || k === ')') selectMat(EMPTY);
-  else if (k >= '1' && k <= '9') {
-    const idx = parseInt(k) - 1;
-    if (idx < MATERIALS.length) selectMat(MATERIALS[idx].id);
+  if (k==='0'||k===')') selectMat(EMPTY);
+  else if (k>='1'&&k<='9') {
+    const idx = parseInt(k)-1;
+    if (idx<MATERIALS.length) selectMat(MATERIALS[idx].id);
   }
-  else if (k === 'c') clearAll();
-  else if (k === '[') { brushSize = Math.max(1, brushSize-1); document.getElementById('brushS').value=brushSize; document.getElementById('brushV').textContent=brushSize; }
-  else if (k === ']') { brushSize = Math.min(15, brushSize+1); document.getElementById('brushS').value=brushSize; document.getElementById('brushV').textContent=brushSize; }
+  else if (k==='c') clearAll();
+  else if (k===' ') { e.preventDefault(); togglePause(); }
+  else if (k==='[') { brushSize=Math.max(1,brushSize-1); syncBrush(); }
+  else if (k===']') { brushSize=Math.min(15,brushSize+1); syncBrush(); }
 });
+
+function syncBrush() {
+  document.getElementById('brushS').value = brushSize;
+  document.getElementById('brushV').textContent = brushSize;
+}
 
 // Sliders
 document.getElementById('brushS').addEventListener('input', e => {
@@ -641,11 +782,19 @@ document.getElementById('speedS').addEventListener('input', e => {
 
 // Scroll to change brush size
 addEventListener('wheel', e => {
+  if (!started) return;
   e.preventDefault();
   brushSize = Math.max(1, Math.min(15, brushSize + (e.deltaY > 0 ? -1 : 1)));
-  document.getElementById('brushS').value = brushSize;
-  document.getElementById('brushV').textContent = brushSize;
+  syncBrush();
 }, {passive:false});
+
+// === PAUSE ===
+function togglePause() {
+  paused = !paused;
+  const btn = document.getElementById('pauseBtn');
+  btn.textContent = paused ? 'play' : 'pause';
+  btn.classList.toggle('active', paused);
+}
 
 // === PRESETS ===
 function clearAll() { initGrid(); }
@@ -654,88 +803,188 @@ function preset(name) {
   clearAll();
 
   if (name === 'rain') {
-    // Stone floor with water pouring from top
+    // Stone terrain with pools and water sources
     for (let x = 0; x < GW; x++) {
-      for (let t = 0; t < 3; t++) set(x, GH-1-t, STONE);
+      const h = GH - 5 + Math.sin(x*.03)*4 + Math.sin(x*.08)*2;
+      for (let y = Math.floor(h); y < GH; y++) if (inBounds(x,y)) set(x,y,STONE);
     }
-    // Water sources at top
-    for (let i = 0; i < 5; i++) {
-      const sx = Math.floor(GW * (i+1) / 6);
-      for (let dx = -2; dx <= 2; dx++) set(sx+dx, 0, WATER);
-      for (let dx = -2; dx <= 2; dx++) set(sx+dx, 1, WATER);
+    // Rain sources across top
+    for (let i = 0; i < 8; i++) {
+      const sx = Math.floor(GW * (i+0.5) / 8);
+      for (let dx = -3; dx <= 3; dx++) {
+        for (let dy = 0; dy < 3; dy++) if (inBounds(sx+dx,dy)) set(sx+dx,dy,WATER);
+      }
+    }
+    // Some sand hills
+    for (let i = 0; i < 3; i++) {
+      const cx = Math.floor(GW * (i+1) / 4);
+      for (let dy = 0; dy < 12; dy++) {
+        const w = 12 - dy;
+        for (let dx = -w; dx <= w; dx++) {
+          const px = cx+dx, py = GH-6-dy;
+          if (inBounds(px,py) && get(px,py)===EMPTY) set(px,py,SAND);
+        }
+      }
     }
   }
 
   else if (name === 'volcano') {
-    // Stone mountain with lava at top
     const cx = Math.floor(GW/2);
-    const base = GH - 5;
-    for (let y = base; y > base - Math.floor(GH*0.5); y--) {
-      const progress = (base - y) / (GH * 0.5);
-      const halfW = Math.floor((1 - progress) * GW * 0.3);
-      for (let x = cx - halfW; x <= cx + halfW; x++) {
-        if (inBounds(x, y)) set(x, y, STONE);
+    const base = GH - 4;
+    const mh = Math.floor(GH * 0.55);
+    // Build mountain
+    for (let y = base; y > base - mh; y--) {
+      const p = (base-y)/mh;
+      const hw = Math.floor((1-p*p)*GW*0.35);
+      for (let x = cx-hw; x <= cx+hw; x++) {
+        if (inBounds(x,y)) set(x,y,STONE);
       }
     }
-    // Lava pool at top
-    const topY = base - Math.floor(GH*0.45);
-    for (let dy = 0; dy < 8; dy++) {
-      for (let dx = -6; dx <= 6; dx++) {
-        if (inBounds(cx+dx, topY+dy)) set(cx+dx, topY+dy, LAVA);
+    // Crater at top
+    const topY = base - mh + 3;
+    for (let dy = 0; dy < 12; dy++) {
+      for (let dx = -8; dx <= 8; dx++) {
+        if (inBounds(cx+dx,topY+dy)) set(cx+dx,topY+dy, dy<6 ? LAVA : EMPTY);
+      }
+    }
+    // Lava veins inside mountain
+    for (let i = 0; i < 4; i++) {
+      let lx = cx + (i-1.5)*4, ly = topY + 8;
+      for (let s = 0; s < 20; s++) {
+        if (inBounds(Math.floor(lx),Math.floor(ly))) set(Math.floor(lx),Math.floor(ly),LAVA);
+        lx += (Math.random()-.5)*3;
+        ly += 1+Math.random();
+      }
+    }
+    // Some oil pools at base for explosions
+    for (const side of [-1,1]) {
+      const ox = cx + side*Math.floor(GW*0.25);
+      for (let dx = -8; dx <= 8; dx++) {
+        for (let dy = 0; dy < 4; dy++) {
+          if (inBounds(ox+dx,base-4-dy)) set(ox+dx,base-4-dy,OIL);
+        }
       }
     }
   }
 
   else if (name === 'garden') {
-    // Soil (sand) with plants
+    // Rolling hills of sand/soil
     for (let x = 0; x < GW; x++) {
-      const h = Math.floor(GH * 0.7 + Math.sin(x*0.05)*8);
-      for (let y = h; y < GH; y++) set(x, y, SAND);
-      // Plant seeds
-      if (Math.random() < 0.08) {
-        set(x, h-1, PLANT);
+      const h = Math.floor(GH*0.65 + Math.sin(x*.04)*12 + Math.sin(x*.11)*6);
+      for (let y = h; y < GH; y++) if (inBounds(x,y)) set(x,y,SAND);
+    }
+    // Plant seeds across the terrain
+    for (let x = 0; x < GW; x++) {
+      const h = Math.floor(GH*0.65 + Math.sin(x*.04)*12 + Math.sin(x*.11)*6);
+      if (hash(x,0,0) < 0.12) {
+        for (let dy = 0; dy < 3+Math.floor(hash(x,1,0)*5); dy++) {
+          if (inBounds(x,h-1-dy)) set(x,h-1-dy,PLANT);
+        }
       }
     }
-    // Water pool
-    const poolX = Math.floor(GW * 0.3);
-    for (let dx = -15; dx <= 15; dx++) {
-      for (let dy = 0; dy < 6; dy++) {
-        const px = poolX + dx, py = Math.floor(GH*0.7) + dy;
-        if (inBounds(px, py) && get(px, py) === SAND) set(px, py, WATER);
+    // Water stream
+    const streamX = Math.floor(GW*0.5);
+    for (let dx = -10; dx <= 10; dx++) {
+      for (let dy = 0; dy < 8; dy++) {
+        const h = Math.floor(GH*0.65 + Math.sin((streamX+dx)*.04)*12 + Math.sin((streamX+dx)*.11)*6);
+        const px = streamX+dx, py = h+dy;
+        if (inBounds(px,py) && get(px,py)===SAND) set(px,py,WATER);
+      }
+    }
+    // Small rain source
+    for (let dx = -3; dx <= 3; dx++) set(streamX+dx,0,WATER);
+  }
+
+  else if (name === 'aquarium') {
+    // Glass tank
+    const wallT = 3;
+    const top = Math.floor(GH*0.2);
+    for (let y = top; y < GH; y++) {
+      for (let t = 0; t < wallT; t++) {
+        if (inBounds(t,y)) set(t,y,GLASS);
+        if (inBounds(GW-1-t,y)) set(GW-1-t,y,GLASS);
+      }
+    }
+    for (let x = 0; x < GW; x++) {
+      for (let t = 0; t < wallT; t++) {
+        if (inBounds(x,GH-1-t)) set(x,GH-1-t,GLASS);
+      }
+    }
+    // Sand substrate with variation
+    for (let x = wallT; x < GW-wallT; x++) {
+      const sh = GH-wallT-4+Math.floor(Math.sin(x*.12)*2+Math.sin(x*.05)*3);
+      for (let y = sh; y < GH-wallT; y++) if (inBounds(x,y)) set(x,y,SAND);
+    }
+    // Pebbles (stone)
+    for (let i = 0; i < 8; i++) {
+      const px = wallT + 5 + Math.floor(hash(i,0,0)*(GW-wallT*2-10));
+      const py = GH-wallT-5;
+      for (let dx = -1; dx <= 1; dx++) for (let dy = -1; dy <= 1; dy++) {
+        if (inBounds(px+dx,py+dy)&&get(px+dx,py+dy)===EMPTY) set(px+dx,py+dy,STONE);
+      }
+    }
+    // Water fill
+    for (let x = wallT; x < GW-wallT; x++) {
+      for (let y = top+2; y < GH-wallT; y++) {
+        if (get(x,y)===EMPTY) set(x,y,WATER);
+      }
+    }
+    // Tall plants
+    for (let i = 0; i < 10; i++) {
+      const px = wallT+4+Math.floor(hash(i,1,0)*(GW-wallT*2-8));
+      const base = GH-wallT-5;
+      for (let dy = 0; dy < 6+Math.floor(hash(i,2,0)*8); dy++) {
+        if (inBounds(px,base-dy)) set(px,base-dy,PLANT);
       }
     }
   }
 
-  else if (name === 'aquarium') {
-    // Glass walls with water and sand bottom
-    // Bottom
-    for (let x = 0; x < GW; x++) {
-      for (let t = 0; t < 3; t++) set(x, GH-1-t, GLASS);
-    }
-    // Walls
-    for (let y = Math.floor(GH*0.3); y < GH; y++) {
-      for (let t = 0; t < 3; t++) {
-        set(t, y, GLASS);
-        set(GW-1-t, y, GLASS);
+  else if (name === 'warfare') {
+    // Two stone forts with metal walls, oil moat, acid vs lava battle
+    const floorY = GH-5;
+    for (let x = 0; x < GW; x++) for (let t = 0; t < 4; t++) if (inBounds(x,floorY+t)) set(x,floorY+t,STONE);
+
+    // Left fort
+    const lx = Math.floor(GW*0.15);
+    for (let dy = 0; dy < 20; dy++) {
+      for (let dx = -12; dx <= 12; dx++) {
+        if (Math.abs(dx)>10||dy<2||dy>18||(Math.abs(dx)<10&&dy>2&&dy<18)) {
+          if (inBounds(lx+dx,floorY-dy)) {
+            if (Math.abs(dx)>=10||dy<=2||dy>=18) set(lx+dx,floorY-dy,METAL);
+          }
+        }
       }
     }
-    // Sand substrate
-    for (let x = 3; x < GW-3; x++) {
-      const h = GH - 6 + Math.floor(Math.sin(x*0.1)*2);
-      for (let y = h; y < GH-3; y++) set(x, y, SAND);
-    }
-    // Water
-    for (let x = 3; x < GW-3; x++) {
-      for (let y = Math.floor(GH*0.35); y < GH-6; y++) {
-        if (get(x, y) === EMPTY) set(x, y, WATER);
+    // Fill left fort with acid
+    for (let dx = -9; dx <= 9; dx++) {
+      for (let dy = 3; dy < 10; dy++) {
+        if (inBounds(lx+dx,floorY-dy)) set(lx+dx,floorY-dy,ACID);
       }
     }
-    // A few plants
-    for (let i = 0; i < 6; i++) {
-      const px = Math.floor(10 + Math.random()*(GW-20));
-      const py = GH - 7;
-      for (let dy = 0; dy < 4 + Math.floor(Math.random()*4); dy++) {
-        if (inBounds(px, py-dy)) set(px, py-dy, PLANT);
+
+    // Right fort
+    const rx = Math.floor(GW*0.85);
+    for (let dy = 0; dy < 20; dy++) {
+      for (let dx = -12; dx <= 12; dx++) {
+        if (Math.abs(dx)>10||dy<2||dy>18||(Math.abs(dx)<10&&dy>2&&dy<18)) {
+          if (inBounds(rx+dx,floorY-dy)) {
+            if (Math.abs(dx)>=10||dy<=2||dy>=18) set(rx+dx,floorY-dy,METAL);
+          }
+        }
+      }
+    }
+    // Fill right fort with lava
+    for (let dx = -9; dx <= 9; dx++) {
+      for (let dy = 3; dy < 10; dy++) {
+        if (inBounds(rx+dx,floorY-dy)) set(rx+dx,floorY-dy,LAVA);
+      }
+    }
+
+    // Oil moat in the middle
+    const mid = Math.floor(GW*0.5);
+    for (let dx = -15; dx <= 15; dx++) {
+      for (let dy = 0; dy < 6; dy++) {
+        if (inBounds(mid+dx,floorY-1-dy)) set(mid+dx,floorY-1-dy,OIL);
       }
     }
   }
@@ -744,25 +993,68 @@ function preset(name) {
 // === STATS ===
 function updateStats() {
   let count = 0;
-  for (let i = 0; i < grid.length; i++) if (grid[i] !== EMPTY) count++;
-  document.getElementById('statL').textContent = `particles: ${count}`;
+  const counts = {};
+  for (let i = 0; i < grid.length; i++) {
+    if (grid[i] !== EMPTY) {
+      count++;
+      counts[grid[i]] = (counts[grid[i]]||0)+1;
+    }
+  }
+  // Find dominant material
+  let dom = '', domC = 0;
+  for (const [k,v] of Object.entries(counts)) {
+    if (v > domC) {
+      domC = v;
+      const m = MATERIALS.find(m => m.id == k);
+      dom = m ? m.name : (k==10?'steam':k==11?'glass':k==13?'ember':'?');
+    }
+  }
+  const txt = `particles: ${count.toLocaleString()}${dom ? '  ·  most: '+dom : ''}`;
+  document.getElementById('statL').textContent = txt;
 }
 
-// === RESIZE ===
+// === RESIZE (preserves state) ===
 function resize() {
-  GW = Math.ceil(innerWidth / SCALE);
-  GH = Math.ceil(innerHeight / SCALE);
-  canvas.width = GW;
-  canvas.height = GH;
-  if (!started) initGrid();
+  const newW = Math.ceil(innerWidth / SCALE);
+  const newH = Math.ceil(innerHeight / SCALE);
+
+  if (started && grid) {
+    // Copy old grid data
+    const oldGrid = grid, oldLife = life;
+    const oldW = GW, oldH = GH;
+    GW = newW; GH = newH;
+    const sz = GW*GH;
+    grid = new Uint8Array(sz);
+    life = new Uint16Array(sz);
+    updated = new Uint32Array(sz);
+    // Copy overlapping region
+    const copyW = Math.min(oldW, GW), copyH = Math.min(oldH, GH);
+    for (let y = 0; y < copyH; y++) {
+      for (let x = 0; x < copyW; x++) {
+        grid[y*GW+x] = oldGrid[y*oldW+x];
+        life[y*GW+x] = oldLife[y*oldW+x];
+      }
+    }
+  } else {
+    GW = newW; GH = newH;
+  }
+
+  canvas.width = GW; canvas.height = GH;
+  glowCanvas.width = GW; glowCanvas.height = GH;
+  cursorCanvas.width = GW; cursorCanvas.height = GH;
+
+  if (!started && !grid) initGrid();
 }
 
 // === LOOP ===
 function loop() {
   if (started) {
-    for (let s = 0; s < simSpeed; s++) simulate();
+    if (!paused) {
+      for (let s = 0; s < simSpeed; s++) simulate();
+    }
     draw();
-    if (tick % 30 === 0) updateStats();
+    drawCursor();
+    if (tick % 20 === 0) updateStats();
   }
   requestAnimationFrame(loop);
 }
