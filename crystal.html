@@ -8,7 +8,7 @@
   @import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;1,300&family=Inter:wght@300;400&display=swap');
   *{margin:0;padding:0;box-sizing:border-box}
   body{background:#040406;color:#fff;font-family:'Inter',sans-serif;overflow:hidden;height:100vh;width:100vw}
-  #c{position:absolute;top:0;left:0;width:100vw;height:100vh;image-rendering:pixelated}
+  #c{position:absolute;top:0;left:0;width:100vw;height:100vh;image-rendering:pixelated;z-index:1}
 
   #intro{position:fixed;inset:0;z-index:100;background:#040406;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;transition:opacity 1.2s;padding:20px}
   #intro.hide{opacity:0;pointer-events:none}
@@ -18,11 +18,11 @@
   #intro button{background:none;border:1px solid rgba(255,255,255,.08);color:rgba(255,255,255,.4);font-family:'Cormorant Garamond',serif;font-size:18px;letter-spacing:8px;padding:16px 56px;border-radius:60px;cursor:pointer;transition:all .5s}
   #intro button:hover{border-color:rgba(255,255,255,.25);color:rgba(255,255,255,.8);box-shadow:0 0 60px rgba(120,180,255,.05)}
 
-  .hud{position:fixed;z-index:10;display:none}
+  .hud{position:fixed;z-index:20;display:none;padding:12px 16px;border-radius:12px;background:rgba(4,4,6,.85);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px)}
   #topL{top:20px;left:20px}
-  .ht{font-family:'Cormorant Garamond',serif;font-size:28px;font-weight:300;color:rgba(255,255,255,.06);letter-spacing:6px}
-  .hstat{font-size:8px;color:rgba(255,255,255,.04);letter-spacing:1px;margin-top:4px;font-family:monospace}
-  .hhint{font-size:9px;color:rgba(255,255,255,.04);letter-spacing:2px;margin-top:6px}
+  .ht{font-family:'Cormorant Garamond',serif;font-size:28px;font-weight:300;color:rgba(255,255,255,.15);letter-spacing:6px}
+  .hstat{font-size:8px;color:rgba(255,255,255,.1);letter-spacing:1px;margin-top:4px;font-family:monospace}
+  .hhint{font-size:9px;color:rgba(255,255,255,.08);letter-spacing:2px;margin-top:6px}
 
   #topR{top:20px;right:20px;display:none;flex-direction:column;gap:5px;align-items:flex-end}
   .cr{display:flex;align-items:center;gap:8px}
@@ -33,13 +33,13 @@
 
   #bot{bottom:20px;left:50%;transform:translateX(-50%);display:none;flex-direction:column;align-items:center;gap:8px}
   .brow{display:flex;gap:6px;flex-wrap:wrap;justify-content:center}
-  .bb{background:rgba(255,255,255,.02);border:1px solid rgba(255,255,255,.05);color:rgba(255,255,255,.18);font-size:10px;letter-spacing:2px;padding:7px 14px;border-radius:20px;cursor:pointer;transition:all .3s;text-transform:lowercase;font-family:'Inter',sans-serif}
+  .bb{background:rgba(4,4,6,.7);border:1px solid rgba(255,255,255,.1);color:rgba(255,255,255,.3);font-size:10px;letter-spacing:2px;padding:7px 14px;border-radius:20px;cursor:pointer;transition:all .3s;text-transform:lowercase;font-family:'Inter',sans-serif}
   .bb:hover{background:rgba(255,255,255,.05);color:rgba(255,255,255,.35)}
   .bb.on{border-color:rgba(120,180,255,.2);color:rgba(120,180,255,.45);background:rgba(120,180,255,.04)}
 
   #botR{bottom:20px;right:20px;display:none;flex-direction:column;gap:3px;align-items:flex-end}
-  .st{font-size:8px;color:rgba(255,255,255,.05);letter-spacing:1px;font-family:monospace}
-  .st em{font-style:normal;color:rgba(255,255,255,.1)}
+  .st{font-size:8px;color:rgba(255,255,255,.1);letter-spacing:1px;font-family:monospace}
+  .st em{font-style:normal;color:rgba(255,255,255,.2)}
 </style>
 </head>
 <body>
@@ -67,8 +67,8 @@
 <div class="hud" id="topR">
   <div class="cr">
     <span class="cl">walkers</span>
-    <input class="cs" type="range" min="500" max="10000" value="3000" step="500" id="walkS">
-    <span class="cv" id="walkV">3000</span>
+    <input class="cs" type="range" min="500" max="10000" value="2000" step="500" id="walkS">
+    <span class="cv" id="walkV">2000</span>
   </div>
   <div class="cr">
     <span class="cl">stickiness</span>
@@ -77,8 +77,8 @@
   </div>
   <div class="cr">
     <span class="cl">speed</span>
-    <input class="cs" type="range" min="1" max="50" value="20" id="speedS">
-    <span class="cv" id="speedV">20</span>
+    <input class="cs" type="range" min="1" max="50" value="10" id="speedS">
+    <span class="cv" id="speedV">10</span>
   </div>
   <div class="cr">
     <span class="cl">symmetry</span>
@@ -113,9 +113,9 @@ let crystalDist; // distance from nearest seed when crystallized
 
 // Walkers
 let walkers = [];
-let numWalkers = 3000;
+let numWalkers = 2000;
 let stickiness = 1.0;
-let stepsPerFrame = 20;
+let stepsPerFrame = 10;
 let symmetry = 1;
 
 // Stats
@@ -249,6 +249,10 @@ function spawnWalkers() {
 
 // === SIMULATION ===
 function step() {
+  // Stop growing when crystal reaches 80% of screen
+  const maxGrowth = Math.min(GW, GH) * 0.4;
+  if (maxRadius >= maxGrowth) return;
+
   spawnWalkers();
 
   const cx = Math.floor(GW/2);
