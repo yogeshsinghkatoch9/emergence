@@ -1,0 +1,920 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Orbit — Gravity Puzzle</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;1,300&family=Inter:wght@300;400&display=swap');
+  *{margin:0;padding:0;box-sizing:border-box}
+  body{background:#060608;color:#fff;font-family:'Inter',sans-serif;overflow:hidden;height:100vh;width:100vw;cursor:crosshair}
+  canvas{display:block;position:absolute;top:0;left:0}
+
+  #intro{position:fixed;inset:0;z-index:100;background:#060608;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;transition:opacity 1s}
+  #intro.hide{opacity:0;pointer-events:none}
+  #intro h1{font-family:'Cormorant Garamond',serif;font-size:clamp(48px,8vw,80px);font-weight:300;letter-spacing:12px;text-transform:lowercase;color:rgba(255,255,255,.8);margin-bottom:12px}
+  #intro p{font-size:13px;font-weight:300;color:rgba(255,255,255,.2);letter-spacing:3px;max-width:420px;line-height:1.8;margin-bottom:32px}
+  #intro button{background:none;border:1px solid rgba(255,255,255,.1);color:rgba(255,255,255,.5);font-family:'Cormorant Garamond',serif;font-size:18px;letter-spacing:6px;padding:14px 48px;border-radius:60px;cursor:pointer;transition:all .4s}
+  #intro button:hover{border-color:rgba(255,255,255,.3);color:rgba(255,255,255,.8);box-shadow:0 0 40px rgba(255,255,255,.05)}
+
+  #hud{position:fixed;top:0;left:0;right:0;z-index:10;pointer-events:none;padding:20px 28px;display:flex;justify-content:space-between;align-items:flex-start}
+  .hud-left,.hud-right{pointer-events:auto}
+  .hud-level{font-family:'Cormorant Garamond',serif;font-size:42px;font-weight:300;color:rgba(255,255,255,.12);letter-spacing:6px}
+  .hud-name{font-size:10px;color:rgba(255,255,255,.15);letter-spacing:4px;text-transform:uppercase;margin-top:2px}
+  .hud-stars-left{font-size:11px;color:rgba(255,255,255,.2);letter-spacing:2px;margin-top:8px}
+  .hud-stars-left span{color:rgba(255,200,100,.4)}
+
+  .hud-right{display:flex;flex-direction:column;align-items:flex-end;gap:8px}
+  .btn{background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.06);color:rgba(255,255,255,.3);font-family:'Inter',sans-serif;font-size:10px;letter-spacing:2px;padding:8px 16px;border-radius:20px;cursor:pointer;transition:all .3s;text-transform:uppercase}
+  .btn:hover{background:rgba(255,255,255,.06);color:rgba(255,255,255,.5);border-color:rgba(255,255,255,.12)}
+
+  .mass-selector{position:fixed;bottom:28px;left:50%;transform:translateX(-50%);z-index:10;display:flex;gap:12px;align-items:center}
+  .mass-btn{width:40px;height:40px;border-radius:50%;border:1px solid rgba(255,255,255,.08);background:rgba(255,255,255,.02);cursor:pointer;transition:all .3s;position:relative;display:flex;align-items:center;justify-content:center}
+  .mass-btn:hover{border-color:rgba(255,255,255,.2);background:rgba(255,255,255,.05)}
+  .mass-btn.active{border-color:rgba(255,200,100,.3);background:rgba(255,200,100,.04);box-shadow:0 0 20px rgba(255,200,100,.1)}
+  .mass-dot{border-radius:50%;background:radial-gradient(circle,#fff,rgba(255,200,100,.6))}
+  .mass-label{font-size:8px;color:rgba(255,255,255,.15);letter-spacing:1px;text-align:center;margin-top:4px;position:absolute;bottom:-16px;width:60px;left:50%;transform:translateX(-50%)}
+
+  #win-screen{position:fixed;inset:0;z-index:50;background:rgba(6,6,8,.85);display:none;flex-direction:column;align-items:center;justify-content:center;text-align:center;backdrop-filter:blur(20px)}
+  #win-screen.show{display:flex}
+  #win-screen h2{font-family:'Cormorant Garamond',serif;font-size:clamp(36px,6vw,64px);font-weight:300;letter-spacing:10px;color:rgba(255,255,255,.7);margin-bottom:8px}
+  #win-screen .win-sub{font-size:12px;color:rgba(255,255,255,.15);letter-spacing:3px;margin-bottom:8px}
+  #win-screen .win-stars{font-size:28px;margin:16px 0;letter-spacing:8px}
+  #win-screen .win-time{font-size:11px;color:rgba(255,255,255,.1);letter-spacing:2px;margin-bottom:24px}
+  .win-btns{display:flex;gap:12px}
+
+  #tooltip{position:fixed;z-index:20;font-size:10px;color:rgba(255,255,255,.2);letter-spacing:2px;pointer-events:none;transition:opacity .3s;opacity:0;text-transform:uppercase}
+  #tooltip.show{opacity:1}
+
+  .trail-hint{position:fixed;bottom:60px;left:50%;transform:translateX(-50%);font-size:10px;color:rgba(255,255,255,.08);letter-spacing:3px;z-index:5;pointer-events:none}
+</style>
+</head>
+<body>
+
+<div id="intro">
+  <h1>orbit</h1>
+  <p>Place stars to bend gravity.<br>Guide the ship to the gate.<br>Fewer stars, better score.</p>
+  <button onclick="startGame()">begin</button>
+</div>
+
+<canvas id="bg"></canvas>
+<canvas id="main"></canvas>
+<canvas id="fx"></canvas>
+
+<div id="hud" style="display:none">
+  <div class="hud-left">
+    <div class="hud-level" id="levelNum">01</div>
+    <div class="hud-name" id="levelName">first light</div>
+    <div class="hud-stars-left" id="starsLeft">stars: <span>3</span> remaining</div>
+  </div>
+  <div class="hud-right">
+    <button class="btn" onclick="launchShip()">launch ↵</button>
+    <button class="btn" onclick="resetLevel()">reset</button>
+    <button class="btn" id="clearBtn" onclick="clearStars()">clear stars</button>
+  </div>
+</div>
+
+<div class="mass-selector" id="massSelector" style="display:none">
+  <div class="mass-btn active" data-mass="80" onclick="selectMass(this,80)">
+    <div class="mass-dot" style="width:8px;height:8px"></div>
+    <div class="mass-label">dwarf</div>
+  </div>
+  <div class="mass-btn" data-mass="200" onclick="selectMass(this,200)">
+    <div class="mass-dot" style="width:12px;height:12px"></div>
+    <div class="mass-label">star</div>
+  </div>
+  <div class="mass-btn" data-mass="500" onclick="selectMass(this,500)">
+    <div class="mass-dot" style="width:16px;height:16px"></div>
+    <div class="mass-label">giant</div>
+  </div>
+  <div class="mass-btn" data-mass="1200" onclick="selectMass(this,1200)">
+    <div class="mass-dot" style="width:20px;height:20px"></div>
+    <div class="mass-label">black hole</div>
+  </div>
+</div>
+
+<div id="win-screen">
+  <h2 id="winTitle">orbit achieved</h2>
+  <div class="win-sub" id="winSub">the ship found its way</div>
+  <div class="win-stars" id="winStars"></div>
+  <div class="win-time" id="winTime"></div>
+  <div class="win-btns">
+    <button class="btn" onclick="nextLevel()">next level</button>
+    <button class="btn" onclick="resetLevel()">retry</button>
+  </div>
+</div>
+
+<div id="tooltip">click to place a star</div>
+<div class="trail-hint" id="trailHint"></div>
+
+<script>
+const bgC=document.getElementById('bg'),mainC=document.getElementById('main'),fxC=document.getElementById('fx');
+const bg=bgC.getContext('2d'),ctx=mainC.getContext('2d'),fx=fxC.getContext('2d');
+const dpr=devicePixelRatio||1;
+let W,H;
+
+function resize(){
+  W=innerWidth;H=innerHeight;
+  [bgC,mainC,fxC].forEach(c=>{c.width=W*dpr;c.height=H*dpr;c.style.width=W+'px';c.style.height=H+'px';c.getContext('2d').scale(dpr,dpr)});
+  drawBackground();
+}
+addEventListener('resize',resize);
+
+// Background stars
+let bgStars=[];
+function initBgStars(){
+  bgStars=[];
+  for(let i=0;i<300;i++){
+    bgStars.push({x:Math.random()*W,y:Math.random()*H,r:Math.random()*1.2+.2,a:Math.random()*.3+.02,twinkle:Math.random()*Math.PI*2,speed:Math.random()*.02+.005});
+  }
+}
+function drawBackground(){
+  bg.fillStyle='#060608';bg.fillRect(0,0,W,H);
+  // subtle nebula patches
+  for(let i=0;i<3;i++){
+    const gx=W*(.2+i*.3),gy=H*(.3+Math.sin(i*2)*.2),gr=Math.min(W,H)*.25;
+    const g=bg.createRadialGradient(gx,gy,0,gx,gy,gr);
+    const colors=['rgba(40,20,60,.015)','rgba(20,40,80,.01)','rgba(60,20,40,.012)'];
+    g.addColorStop(0,colors[i]);g.addColorStop(1,'transparent');
+    bg.fillStyle=g;bg.fillRect(0,0,W,H);
+  }
+}
+
+// Game state
+let state='idle'; // idle, placing, simulating, won, lost
+let currentLevel=0;
+let selectedMass=80;
+let placedStars=[];
+let ship=null;
+let gate=null;
+let shipTrail=[];
+let predictPath=[];
+let particles=[];
+let shockwaves=[];
+let time=0;
+let simTime=0;
+let levelStartTime=0;
+
+// Levels
+const LEVELS=[
+  {
+    name:'first light',
+    ship:{x:.15,y:.5,vx:120,vy:0},
+    gate:{x:.85,y:.5},
+    maxStars:3,
+    obstacles:[],
+    hint:'place a star below the path to curve the ship upward — or above to curve it down',
+    par:1
+  },
+  {
+    name:'the bend',
+    ship:{x:.1,y:.3,vx:100,vy:0},
+    gate:{x:.9,y:.7},
+    maxStars:3,
+    obstacles:[],
+    hint:'gravity pulls the ship toward your stars',
+    par:1
+  },
+  {
+    name:'the wall',
+    ship:{x:.15,y:.5,vx:110,vy:0},
+    gate:{x:.85,y:.5},
+    maxStars:3,
+    obstacles:[{x:.5,y:.5,w:8,h:200}],
+    hint:'curve around the obstacle',
+    par:2
+  },
+  {
+    name:'slingshot',
+    ship:{x:.15,y:.8,vx:80,vy:-40},
+    gate:{x:.85,y:.2},
+    maxStars:3,
+    obstacles:[],
+    hint:'use a massive star for a gravity assist',
+    par:1
+  },
+  {
+    name:'the corridor',
+    ship:{x:.1,y:.5,vx:100,vy:0},
+    gate:{x:.9,y:.5},
+    maxStars:4,
+    obstacles:[{x:.35,y:.3,w:8,h:140},{x:.65,y:.7,w:8,h:140}],
+    hint:'thread the needle between obstacles',
+    par:2
+  },
+  {
+    name:'orbit',
+    ship:{x:.5,y:.15,vx:80,vy:0},
+    gate:{x:.5,y:.85},
+    maxStars:3,
+    obstacles:[{x:.5,y:.5,w:60,h:60}],
+    hint:'swing the ship around the central mass',
+    par:2
+  },
+  {
+    name:'the maze',
+    ship:{x:.08,y:.2,vx:70,vy:30},
+    gate:{x:.92,y:.8},
+    maxStars:5,
+    obstacles:[{x:.3,y:.35,w:8,h:180},{x:.5,y:.65,w:8,h:180},{x:.7,y:.35,w:8,h:180}],
+    hint:'patience — each star shapes the path',
+    par:3
+  },
+  {
+    name:'freefall',
+    ship:{x:.5,y:.05,vx:0,vy:60},
+    gate:{x:.5,y:.95},
+    maxStars:2,
+    obstacles:[{x:.35,y:.5,w:8,h:120},{x:.65,y:.5,w:8,h:120}],
+    hint:'sometimes less is more',
+    par:1
+  },
+  {
+    name:'the spiral',
+    ship:{x:.1,y:.1,vx:60,vy:60},
+    gate:{x:.9,y:.9},
+    maxStars:4,
+    obstacles:[{x:.3,y:.3,w:50,h:50},{x:.7,y:.7,w:50,h:50}],
+    hint:'place stars in sequence to spiral the path',
+    par:3
+  },
+  {
+    name:'convergence',
+    ship:{x:.05,y:.5,vx:50,vy:0},
+    gate:{x:.95,y:.5},
+    maxStars:5,
+    obstacles:[{x:.25,y:.3,w:6,h:100},{x:.25,y:.7,w:6,h:100},{x:.5,y:.4,w:6,h:80},{x:.5,y:.6,w:6,h:80},{x:.75,y:.3,w:6,h:100},{x:.75,y:.7,w:6,h:100}],
+    hint:'the final puzzle — find the path through chaos',
+    par:4
+  }
+];
+
+function getAbsPos(rel){return{x:rel.x*W,y:rel.y*H}}
+
+function loadLevel(idx){
+  if(idx>=LEVELS.length)idx=0;
+  currentLevel=idx;
+  const L=LEVELS[idx];
+  const sp=getAbsPos(L.ship);
+  ship={x:sp.x,y:sp.y,vx:L.ship.vx,vy:L.ship.vy,alive:true,radius:6};
+  const gp=getAbsPos(L.gate);
+  gate={x:gp.x,y:gp.y,radius:22,pulse:0};
+  placedStars=[];
+  shipTrail=[];
+  predictPath=[];
+  particles=[];
+  shockwaves=[];
+  state='placing';
+  simTime=0;
+
+  document.getElementById('levelNum').textContent=(idx+1).toString().padStart(2,'0');
+  document.getElementById('levelName').textContent=L.name;
+  updateStarsUI();
+  document.getElementById('trailHint').textContent=L.hint||'';
+  document.getElementById('win-screen').classList.remove('show');
+}
+
+function updateStarsUI(){
+  const L=LEVELS[currentLevel];
+  const rem=L.maxStars-placedStars.length;
+  document.getElementById('starsLeft').innerHTML='stars: <span>'+rem+'</span> remaining';
+}
+
+function selectMass(el,mass){
+  selectedMass=mass;
+  document.querySelectorAll('.mass-btn').forEach(b=>b.classList.remove('active'));
+  el.classList.add('active');
+}
+
+// Placing stars
+mainC.addEventListener('click',e=>{
+  if(state!=='placing')return;
+  const L=LEVELS[currentLevel];
+  if(placedStars.length>=L.maxStars)return;
+  const rect=mainC.getBoundingClientRect();
+  const mx=e.clientX-rect.left,my=e.clientY-rect.top;
+
+  // Don't place on ship, gate, or obstacles
+  if(dist(mx,my,ship.x,ship.y)<40)return;
+  if(dist(mx,my,gate.x,gate.y)<40)return;
+  for(const o of L.obstacles){
+    const op=getAbsPos(o);
+    if(mx>op.x-o.w/2-20&&mx<op.x+o.w/2+20&&my>op.y-o.h/2-20&&my<op.y+o.h/2+20)return;
+  }
+
+  placedStars.push({x:mx,y:my,mass:selectedMass,birthTime:time});
+  updateStarsUI();
+  computePrediction();
+
+  // sparkle
+  for(let i=0;i<12;i++){
+    const a=Math.random()*Math.PI*2;
+    particles.push({x:mx,y:my,vx:Math.cos(a)*60+Math.random()*20,vy:Math.sin(a)*60+Math.random()*20,life:1,maxLife:1,r:Math.random()*2+1,color:'rgba(255,200,100,'});
+  }
+});
+
+// Right click to remove last star
+mainC.addEventListener('contextmenu',e=>{
+  e.preventDefault();
+  if(state!=='placing'||placedStars.length===0)return;
+  placedStars.pop();
+  updateStarsUI();
+  computePrediction();
+});
+
+// Keyboard
+addEventListener('keydown',e=>{
+  if(e.key==='Enter'||e.key===' '){
+    if(state==='placing')launchShip();
+    else if(state==='won')nextLevel();
+  }
+  if(e.key==='r'||e.key==='R')resetLevel();
+  if(e.key==='z'&&placedStars.length>0&&state==='placing'){
+    placedStars.pop();updateStarsUI();computePrediction();
+  }
+  if(e.key>='1'&&e.key<='4'){
+    const masses=[80,200,500,1200];
+    const idx=parseInt(e.key)-1;
+    selectedMass=masses[idx];
+    document.querySelectorAll('.mass-btn').forEach((b,i)=>{b.classList.toggle('active',i===idx)});
+  }
+});
+
+// Prediction path (lightweight simulation)
+function computePrediction(){
+  if(state!=='placing')return;
+  const L=LEVELS[currentLevel];
+  const sp=getAbsPos(L.ship);
+  let px=sp.x,py=sp.y,pvx=L.ship.vx,pvy=L.ship.vy;
+  predictPath=[];
+  const dt=1/60;
+  const G=800;
+  for(let step=0;step<600;step++){
+    predictPath.push({x:px,y:py});
+    // gravity from placed stars
+    let ax=0,ay=0;
+    for(const s of placedStars){
+      const dx=s.x-px,dy=s.y-py;
+      const d2=dx*dx+dy*dy+400;
+      const d=Math.sqrt(d2);
+      const f=G*s.mass/d2;
+      ax+=f*dx/d;ay+=f*dy/d;
+    }
+    pvx+=ax*dt;pvy+=ay*dt;
+    px+=pvx*dt;py+=pvy*dt;
+
+    // check gate
+    if(dist(px,py,gate.x,gate.y)<gate.radius+ship.radius){break}
+    // check bounds
+    if(px<-100||px>W+100||py<-100||py>H+100)break;
+    // check obstacles
+    let hit=false;
+    for(const o of L.obstacles){
+      const op=getAbsPos(o);
+      if(px>op.x-o.w/2&&px<op.x+o.w/2&&py>op.y-o.h/2&&py<op.y+o.h/2){hit=true;break}
+    }
+    if(hit)break;
+    // check star collision
+    for(const s of placedStars){
+      const sr=s.mass>800?18:s.mass>300?12:s.mass>100?8:6;
+      if(dist(px,py,s.x,s.y)<sr+ship.radius){hit=true;break}
+    }
+    if(hit)break;
+  }
+}
+
+function launchShip(){
+  if(state!=='placing')return;
+  state='simulating';
+  const L=LEVELS[currentLevel];
+  const sp=getAbsPos(L.ship);
+  ship.x=sp.x;ship.y=sp.y;ship.vx=L.ship.vx;ship.vy=L.ship.vy;ship.alive=true;
+  shipTrail=[];
+  simTime=0;
+  levelStartTime=time;
+  document.getElementById('trailHint').textContent='';
+}
+
+function resetLevel(){
+  document.getElementById('win-screen').classList.remove('show');
+  loadLevel(currentLevel);
+}
+
+function clearStars(){
+  if(state!=='placing')return;
+  placedStars=[];
+  updateStarsUI();
+  predictPath=[];
+}
+
+function nextLevel(){
+  document.getElementById('win-screen').classList.remove('show');
+  loadLevel(currentLevel+1);
+}
+
+function dist(x1,y1,x2,y2){return Math.sqrt((x1-x2)**2+(y1-y2)**2)}
+
+// Physics
+function simulate(dt){
+  if(state!=='simulating'||!ship.alive)return;
+  simTime+=dt;
+  const G=800;
+  let ax=0,ay=0;
+
+  for(const s of placedStars){
+    const dx=s.x-ship.x,dy=s.y-ship.y;
+    const d2=dx*dx+dy*dy+400;
+    const d=Math.sqrt(d2);
+    const f=G*s.mass/d2;
+    ax+=f*dx/d;ay+=f*dy/d;
+  }
+
+  ship.vx+=ax*dt;ship.vy+=ay*dt;
+  ship.x+=ship.vx*dt;ship.y+=ship.vy*dt;
+
+  // Trail
+  shipTrail.push({x:ship.x,y:ship.y,age:0});
+  if(shipTrail.length>400)shipTrail.shift();
+
+  // engine particles
+  const speed=Math.sqrt(ship.vx**2+ship.vy**2);
+  const ang=Math.atan2(ship.vy,ship.vx);
+  for(let i=0;i<2;i++){
+    particles.push({
+      x:ship.x-Math.cos(ang)*8,y:ship.y-Math.sin(ang)*8,
+      vx:-Math.cos(ang)*speed*.3+(Math.random()-.5)*30,
+      vy:-Math.sin(ang)*speed*.3+(Math.random()-.5)*30,
+      life:1,maxLife:1,r:Math.random()*2+.5,
+      color:'rgba(100,180,255,'
+    });
+  }
+
+  // Check gate arrival
+  if(dist(ship.x,ship.y,gate.x,gate.y)<gate.radius+ship.radius){
+    winLevel();return;
+  }
+
+  // Check out of bounds
+  if(ship.x<-80||ship.x>W+80||ship.y<-80||ship.y>H+80){
+    loseShip();return;
+  }
+
+  // Check obstacle collision
+  const L=LEVELS[currentLevel];
+  for(const o of L.obstacles){
+    const op=getAbsPos(o);
+    if(ship.x>op.x-o.w/2-ship.radius&&ship.x<op.x+o.w/2+ship.radius&&
+       ship.y>op.y-o.h/2-ship.radius&&ship.y<op.y+o.h/2+ship.radius){
+      loseShip();return;
+    }
+  }
+
+  // Check star collision
+  for(const s of placedStars){
+    const sr=s.mass>800?18:s.mass>300?12:s.mass>100?8:6;
+    if(dist(ship.x,ship.y,s.x,s.y)<sr+ship.radius){
+      loseShip();return;
+    }
+  }
+
+  // Timeout
+  if(simTime>15){loseShip()}
+}
+
+function winLevel(){
+  state='won';
+  ship.alive=false;
+
+  // Explosion of joy
+  for(let i=0;i<60;i++){
+    const a=Math.random()*Math.PI*2;
+    const sp=Math.random()*120+40;
+    particles.push({x:gate.x,y:gate.y,vx:Math.cos(a)*sp,vy:Math.sin(a)*sp,life:1,maxLife:1,r:Math.random()*3+1,color:Math.random()>.5?'rgba(255,220,100,':'rgba(100,200,255,'});
+  }
+  shockwaves.push({x:gate.x,y:gate.y,r:0,maxR:200,life:1});
+
+  const L=LEVELS[currentLevel];
+  const starsUsed=placedStars.length;
+  let rating=1;
+  if(starsUsed<=L.par)rating=3;
+  else if(starsUsed<=L.par+1)rating=2;
+
+  const elapsed=((time-levelStartTime)/60).toFixed(1);
+
+  document.getElementById('winTitle').textContent=currentLevel===LEVELS.length-1?'mastery':'orbit achieved';
+  document.getElementById('winSub').textContent=L.name;
+  document.getElementById('winStars').textContent='★'.repeat(rating)+'☆'.repeat(3-rating);
+  document.getElementById('winTime').textContent=starsUsed+' star'+(starsUsed!==1?'s':'')+' · '+elapsed+'s';
+
+  setTimeout(()=>{document.getElementById('win-screen').classList.add('show')},800);
+}
+
+function loseShip(){
+  ship.alive=false;
+  // explosion
+  for(let i=0;i<30;i++){
+    const a=Math.random()*Math.PI*2;
+    const sp=Math.random()*80+20;
+    particles.push({x:ship.x,y:ship.y,vx:Math.cos(a)*sp,vy:Math.sin(a)*sp,life:1,maxLife:1,r:Math.random()*2+1,color:'rgba(255,100,80,'});
+  }
+  shockwaves.push({x:ship.x,y:ship.y,r:0,maxR:120,life:1});
+
+  // Auto reset after delay
+  setTimeout(()=>{
+    if(state==='simulating'){
+      const L=LEVELS[currentLevel];
+      const sp=getAbsPos(L.ship);
+      ship={x:sp.x,y:sp.y,vx:L.ship.vx,vy:L.ship.vy,alive:true,radius:6};
+      shipTrail=[];
+      simTime=0;
+      state='placing';
+      document.getElementById('trailHint').textContent=L.hint||'';
+    }
+  },1200);
+}
+
+// Mouse tracking for tooltip
+let mouseX=0,mouseY=0;
+addEventListener('mousemove',e=>{
+  mouseX=e.clientX;mouseY=e.clientY;
+  const tip=document.getElementById('tooltip');
+  if(state==='placing'){
+    tip.style.left=(mouseX+16)+'px';tip.style.top=(mouseY+16)+'px';
+    const L=LEVELS[currentLevel];
+    const rem=L.maxStars-placedStars.length;
+    if(rem>0){tip.classList.add('show');tip.textContent='click to place · right-click to undo'}
+    else{tip.classList.add('show');tip.textContent='max stars placed · press enter to launch'}
+  }else{
+    tip.classList.remove('show');
+  }
+});
+
+// Rendering
+function drawStar(x,y,mass,birthTime){
+  const age=Math.min((time-birthTime)/30,1);
+  const isBH=mass>800;
+  const isGiant=mass>300;
+  const isMed=mass>100;
+  const r=isBH?18:isGiant?12:isMed?8:6;
+  const scale=age;
+
+  ctx.save();
+  ctx.translate(x,y);
+
+  if(isBH){
+    // Black hole with accretion disk
+    const gr=ctx.createRadialGradient(0,0,r*.3,0,0,r*3);
+    gr.addColorStop(0,'rgba(20,10,30,.6)');
+    gr.addColorStop(.4,'rgba(80,40,120,.15)');
+    gr.addColorStop(.7,'rgba(255,150,50,.08)');
+    gr.addColorStop(1,'transparent');
+    ctx.fillStyle=gr;
+    ctx.beginPath();ctx.arc(0,0,r*3*scale,0,Math.PI*2);ctx.fill();
+
+    // event horizon
+    ctx.fillStyle='#0a0810';
+    ctx.beginPath();ctx.arc(0,0,r*scale,0,Math.PI*2);ctx.fill();
+
+    // ring
+    ctx.strokeStyle='rgba(255,160,60,.25)';
+    ctx.lineWidth=2;
+    ctx.beginPath();ctx.ellipse(0,0,r*2.2*scale,r*.6*scale,time*.01,0,Math.PI*2);ctx.stroke();
+  }else{
+    // Glow
+    const glowR=r*(isGiant?4:isMed?3:2.5);
+    const color=isGiant?'255,200,120':isMed?'255,230,180':'200,220,255';
+    const gr=ctx.createRadialGradient(0,0,0,0,0,glowR*scale);
+    gr.addColorStop(0,'rgba('+color+',.3)');
+    gr.addColorStop(.3,'rgba('+color+',.1)');
+    gr.addColorStop(1,'transparent');
+    ctx.fillStyle=gr;
+    ctx.beginPath();ctx.arc(0,0,glowR*scale,0,Math.PI*2);ctx.fill();
+
+    // Core
+    const cg=ctx.createRadialGradient(0,0,0,0,0,r*scale);
+    cg.addColorStop(0,'rgba(255,255,255,.9)');
+    cg.addColorStop(.5,'rgba('+color+',.7)');
+    cg.addColorStop(1,'rgba('+color+',.2)');
+    ctx.fillStyle=cg;
+    ctx.beginPath();ctx.arc(0,0,r*scale,0,Math.PI*2);ctx.fill();
+
+    // Diffraction spikes
+    if(isGiant||isMed){
+      ctx.strokeStyle='rgba('+color+',.08)';
+      ctx.lineWidth=1;
+      const sLen=r*(isGiant?5:3)*scale;
+      for(let a=0;a<4;a++){
+        const ang=a*Math.PI/2+Math.PI/4;
+        ctx.beginPath();
+        ctx.moveTo(Math.cos(ang)*r*scale,Math.sin(ang)*r*scale);
+        ctx.lineTo(Math.cos(ang)*sLen,Math.sin(ang)*sLen);
+        ctx.stroke();
+      }
+    }
+  }
+
+  // Gravity field rings
+  const fieldR=Math.sqrt(mass)*3;
+  for(let i=1;i<=3;i++){
+    const rr=fieldR*i*.4*scale;
+    const alpha=.03/i;
+    ctx.strokeStyle='rgba(255,255,255,'+alpha+')';
+    ctx.lineWidth=.5;
+    ctx.setLineDash([4,8]);
+    ctx.beginPath();ctx.arc(0,0,rr,0,Math.PI*2);ctx.stroke();
+    ctx.setLineDash([]);
+  }
+
+  ctx.restore();
+}
+
+function drawShip(x,y,vx,vy){
+  const ang=Math.atan2(vy,vx);
+  ctx.save();
+  ctx.translate(x,y);
+  ctx.rotate(ang);
+
+  // Engine glow
+  const eg=ctx.createRadialGradient(-8,0,0,-8,0,16);
+  eg.addColorStop(0,'rgba(100,180,255,.3)');
+  eg.addColorStop(1,'transparent');
+  ctx.fillStyle=eg;
+  ctx.beginPath();ctx.arc(-8,0,16,0,Math.PI*2);ctx.fill();
+
+  // Ship body (triangle)
+  ctx.fillStyle='rgba(200,220,255,.8)';
+  ctx.beginPath();
+  ctx.moveTo(10,0);
+  ctx.lineTo(-6,-5);
+  ctx.lineTo(-6,5);
+  ctx.closePath();
+  ctx.fill();
+
+  // Bright tip
+  ctx.fillStyle='rgba(255,255,255,.9)';
+  ctx.beginPath();ctx.arc(8,0,1.5,0,Math.PI*2);ctx.fill();
+
+  ctx.restore();
+}
+
+function drawGate(g){
+  g.pulse+=.05;
+  const r=g.radius;
+  const p=Math.sin(g.pulse)*.3+.7;
+
+  ctx.save();ctx.translate(g.x,g.y);
+
+  // Outer glow
+  const og=ctx.createRadialGradient(0,0,r*.5,0,0,r*3);
+  og.addColorStop(0,'rgba(100,255,180,.08)');
+  og.addColorStop(.5,'rgba(100,255,180,.03)');
+  og.addColorStop(1,'transparent');
+  ctx.fillStyle=og;
+  ctx.beginPath();ctx.arc(0,0,r*3,0,Math.PI*2);ctx.fill();
+
+  // Ring
+  ctx.strokeStyle='rgba(100,255,180,'+(p*.25)+')';
+  ctx.lineWidth=2;
+  ctx.beginPath();ctx.arc(0,0,r,0,Math.PI*2);ctx.stroke();
+
+  // Inner ring
+  ctx.strokeStyle='rgba(100,255,180,'+(p*.12)+')';
+  ctx.lineWidth=1;
+  ctx.beginPath();ctx.arc(0,0,r*.6,0,Math.PI*2);ctx.stroke();
+
+  // Rotating markers
+  for(let i=0;i<4;i++){
+    const a=i*Math.PI/2+time*.02;
+    const mx=Math.cos(a)*r,my=Math.sin(a)*r;
+    ctx.fillStyle='rgba(100,255,180,'+(p*.4)+')';
+    ctx.beginPath();ctx.arc(mx,my,2,0,Math.PI*2);ctx.fill();
+  }
+
+  // Center diamond
+  ctx.fillStyle='rgba(100,255,180,'+(p*.15)+')';
+  ctx.save();ctx.rotate(time*.03);
+  ctx.beginPath();ctx.moveTo(0,-6);ctx.lineTo(6,0);ctx.lineTo(0,6);ctx.lineTo(-6,0);ctx.closePath();ctx.fill();
+  ctx.restore();
+
+  ctx.restore();
+}
+
+function drawObstacle(o){
+  const op=getAbsPos(o);
+  const isSquare=o.w>20;
+
+  ctx.save();ctx.translate(op.x,op.y);
+
+  // Glow
+  const maxDim=Math.max(o.w,o.h);
+  const gg=ctx.createRadialGradient(0,0,0,0,0,maxDim*.8);
+  gg.addColorStop(0,'rgba(255,60,60,.06)');
+  gg.addColorStop(1,'transparent');
+  ctx.fillStyle=gg;
+  ctx.beginPath();ctx.arc(0,0,maxDim*.8,0,Math.PI*2);ctx.fill();
+
+  // Body
+  const br=isSquare?8:4;
+  ctx.fillStyle='rgba(255,255,255,.04)';
+  ctx.strokeStyle='rgba(255,80,80,.15)';
+  ctx.lineWidth=1;
+  roundRect(ctx,-o.w/2,-o.h/2,o.w,o.h,br);
+  ctx.fill();ctx.stroke();
+
+  // Hazard lines
+  ctx.strokeStyle='rgba(255,80,80,.06)';
+  ctx.lineWidth=.5;
+  const step=12;
+  ctx.save();
+  ctx.beginPath();
+  ctx.rect(-o.w/2,-o.h/2,o.w,o.h);
+  ctx.clip();
+  for(let i=-maxDim;i<maxDim*2;i+=step){
+    ctx.beginPath();
+    ctx.moveTo(-o.w/2+i,-o.h/2);
+    ctx.lineTo(-o.w/2+i-o.h,o.h/2);
+    ctx.stroke();
+  }
+  ctx.restore();
+
+  ctx.restore();
+}
+
+function roundRect(ctx,x,y,w,h,r){
+  ctx.beginPath();
+  ctx.moveTo(x+r,y);ctx.lineTo(x+w-r,y);ctx.quadraticCurveTo(x+w,y,x+w,y+r);
+  ctx.lineTo(x+w,y+h-r);ctx.quadraticCurveTo(x+w,y+h,x+w-r,y+h);
+  ctx.lineTo(x+r,y+h);ctx.quadraticCurveTo(x,y+h,x,y+h-r);
+  ctx.lineTo(x,y+r);ctx.quadraticCurveTo(x,y,x+r,y);ctx.closePath();
+}
+
+// Main loop
+function tick(){
+  time++;
+  const dt=1/60;
+
+  simulate(dt);
+
+  // Update particles
+  for(let i=particles.length-1;i>=0;i--){
+    const p=particles[i];
+    p.x+=p.vx*dt;p.y+=p.vy*dt;
+    p.vx*=.97;p.vy*=.97;
+    p.life-=dt*1.5;
+    if(p.life<=0)particles.splice(i,1);
+  }
+
+  // Update shockwaves
+  for(let i=shockwaves.length-1;i>=0;i--){
+    const s=shockwaves[i];
+    s.r+=4;s.life-=.02;
+    if(s.life<=0)shockwaves.splice(i,1);
+  }
+
+  // Update trail ages
+  shipTrail.forEach(t=>t.age+=dt);
+
+  // Draw bg stars twinkling
+  bg.clearRect(0,0,W,H);
+  drawBackground();
+  bgStars.forEach(s=>{
+    s.twinkle+=s.speed;
+    const a=s.a*(Math.sin(s.twinkle)*.5+.5);
+    bg.fillStyle='rgba(255,255,255,'+a+')';
+    bg.beginPath();bg.arc(s.x,s.y,s.r,0,Math.PI*2);bg.fill();
+  });
+
+  // Clear main
+  ctx.clearRect(0,0,W,H);
+
+  // Draw prediction path
+  if(state==='placing'&&predictPath.length>1){
+    for(let i=1;i<predictPath.length;i++){
+      const alpha=.06*(1-i/predictPath.length);
+      ctx.strokeStyle='rgba(100,180,255,'+alpha+')';
+      ctx.lineWidth=1;
+      if(i%3===0){
+        ctx.beginPath();
+        ctx.moveTo(predictPath[i-1].x,predictPath[i-1].y);
+        ctx.lineTo(predictPath[i].x,predictPath[i].y);
+        ctx.stroke();
+      }
+    }
+  }
+
+  // Ship trail
+  if(shipTrail.length>1){
+    for(let i=1;i<shipTrail.length;i++){
+      const t=shipTrail[i];
+      const alpha=.3*(1-i/shipTrail.length)*(1-Math.min(t.age*2,1));
+      if(alpha<=0)continue;
+      ctx.strokeStyle='rgba(100,180,255,'+alpha+')';
+      ctx.lineWidth=1.5*(1-i/shipTrail.length);
+      ctx.beginPath();
+      ctx.moveTo(shipTrail[i-1].x,shipTrail[i-1].y);
+      ctx.lineTo(t.x,t.y);
+      ctx.stroke();
+    }
+  }
+
+  // Obstacles
+  const L=LEVELS[currentLevel];
+  if(L)L.obstacles.forEach(drawObstacle);
+
+  // Gate
+  if(gate)drawGate(gate);
+
+  // Placed stars
+  placedStars.forEach(s=>drawStar(s.x,s.y,s.mass,s.birthTime));
+
+  // Ship
+  if(ship&&ship.alive){
+    if(state==='placing'){
+      // Ship at start position (pulsing)
+      const sp=getAbsPos(L.ship);
+      const p=Math.sin(time*.08)*.2+.8;
+      ctx.save();ctx.globalAlpha=p;
+      drawShip(sp.x,sp.y,L.ship.vx,L.ship.vy);
+      ctx.restore();
+
+      // Velocity arrow
+      const ang=Math.atan2(L.ship.vy,L.ship.vx);
+      const len=30;
+      ctx.strokeStyle='rgba(100,180,255,.12)';
+      ctx.lineWidth=1;
+      ctx.setLineDash([4,4]);
+      ctx.beginPath();
+      ctx.moveTo(sp.x,sp.y);
+      ctx.lineTo(sp.x+Math.cos(ang)*len,sp.y+Math.sin(ang)*len);
+      ctx.stroke();
+      ctx.setLineDash([]);
+
+      // Arrow head
+      const ax=sp.x+Math.cos(ang)*len,ay=sp.y+Math.sin(ang)*len;
+      ctx.fillStyle='rgba(100,180,255,.15)';
+      ctx.beginPath();
+      ctx.moveTo(ax,ay);
+      ctx.lineTo(ax-Math.cos(ang-.4)*8,ay-Math.sin(ang-.4)*8);
+      ctx.lineTo(ax-Math.cos(ang+.4)*8,ay-Math.sin(ang+.4)*8);
+      ctx.closePath();ctx.fill();
+    }else if(state==='simulating'){
+      drawShip(ship.x,ship.y,ship.vx,ship.vy);
+    }
+  }
+
+  // FX layer
+  fx.clearRect(0,0,W,H);
+
+  // Particles
+  particles.forEach(p=>{
+    const alpha=p.life/p.maxLife;
+    fx.fillStyle=p.color+alpha+')';
+    fx.beginPath();fx.arc(p.x,p.y,p.r*alpha,0,Math.PI*2);fx.fill();
+  });
+
+  // Shockwaves
+  shockwaves.forEach(s=>{
+    fx.strokeStyle='rgba(255,255,255,'+s.life*.2+')';
+    fx.lineWidth=2;
+    fx.beginPath();fx.arc(s.x,s.y,s.r,0,Math.PI*2);fx.stroke();
+  });
+
+  // Gravity field visualization (subtle lines from ship to stars during sim)
+  if(state==='simulating'&&ship.alive){
+    placedStars.forEach(s=>{
+      const d=dist(ship.x,ship.y,s.x,s.y);
+      const influence=Math.min(1,s.mass/(d*.5));
+      if(influence>.02){
+        fx.strokeStyle='rgba(255,200,100,'+influence*.06+')';
+        fx.lineWidth=.5;
+        fx.setLineDash([2,6]);
+        fx.beginPath();fx.moveTo(ship.x,ship.y);fx.lineTo(s.x,s.y);fx.stroke();
+        fx.setLineDash([]);
+      }
+    });
+  }
+
+  requestAnimationFrame(tick);
+}
+
+function startGame(){
+  document.getElementById('intro').classList.add('hide');
+  document.getElementById('hud').style.display='flex';
+  document.getElementById('massSelector').style.display='flex';
+  resize();
+  initBgStars();
+  loadLevel(0);
+  tick();
+}
+
+// Preload
+resize();
+initBgStars();
+drawBackground();
+bgStars.forEach(s=>{
+  bg.fillStyle='rgba(255,255,255,'+s.a+')';
+  bg.beginPath();bg.arc(s.x,s.y,s.r,0,Math.PI*2);bg.fill();
+});
+</script>
+</body>
+</html>
