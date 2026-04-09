@@ -26,13 +26,13 @@
 
   /* Left vertical material palette */
   #matPalette{position:fixed;left:14px;top:50%;transform:translateY(-50%);z-index:30;display:none;flex-direction:column;gap:3px;padding:8px 6px;background:rgba(18,18,22,.92);backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);border-radius:14px;border:1px solid rgba(255,255,255,.06);pointer-events:auto}
-  .swatch{width:36px;height:30px;border-radius:8px;cursor:pointer;border:2px solid transparent;transition:all .2s;position:relative;display:flex;align-items:center;justify-content:center;overflow:hidden}
-  .swatch:hover{border-color:rgba(255,255,255,.2);transform:scale(1.08)}
+  .swatch{width:82px;height:30px;border-radius:8px;cursor:pointer;border:2px solid transparent;transition:all .2s;position:relative;display:flex;align-items:center;gap:7px;overflow:hidden;padding:0 6px 0 0}
+  .swatch:hover{border-color:rgba(255,255,255,.2)}
   .swatch.on{border-color:rgba(255,200,120,.6);box-shadow:0 0 12px rgba(255,180,80,.15)}
-  .swatch .fill{width:100%;height:100%;border-radius:6px}
-  .swatch .label{position:absolute;left:44px;top:50%;transform:translateY(-50%);font-size:10px;letter-spacing:1.5px;color:rgba(255,255,255,.5);white-space:nowrap;pointer-events:none;opacity:0;transition:opacity .15s;background:rgba(18,18,22,.9);padding:4px 10px;border-radius:6px;border:1px solid rgba(255,255,255,.06)}
-  .swatch:hover .label{opacity:1}
-  .swatch .hotkey{position:absolute;bottom:1px;right:3px;font-size:7px;color:rgba(255,255,255,.2);font-weight:500}
+  .swatch .fill{width:26px;height:26px;border-radius:5px;flex-shrink:0}
+  .swatch .name{font-size:9px;letter-spacing:1.5px;color:rgba(255,255,255,.35);white-space:nowrap;text-transform:lowercase;flex:1}
+  .swatch.on .name{color:rgba(255,200,120,.65)}
+  .swatch .hotkey{font-size:7px;color:rgba(255,255,255,.12);font-weight:500;flex-shrink:0}
 
   /* Top bar */
   #topBar{position:fixed;top:0;left:0;right:0;z-index:30;display:none;align-items:center;justify-content:space-between;padding:12px 20px;pointer-events:none}
@@ -733,11 +733,11 @@ function buildPalette(){
     }
     sw.appendChild(fill);
 
-    // Tooltip
-    const label=document.createElement('div');
-    label.className='label';
-    label.textContent=m.name;
-    sw.appendChild(label);
+    // Inline name
+    const nameEl=document.createElement('div');
+    nameEl.className='name';
+    nameEl.textContent=m.name;
+    sw.appendChild(nameEl);
 
     // Hotkey
     const hk=document.createElement('div');
