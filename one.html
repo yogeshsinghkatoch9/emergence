@@ -1,0 +1,917 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ONE — An Interactive Essay on Emergence</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;1,300;1,400&family=JetBrains+Mono:wght@300;400&family=Inter:wght@300;400&display=swap');
+  *{margin:0;padding:0;box-sizing:border-box}
+  ::selection{background:rgba(255,255,255,.1);color:#fff}
+
+  html{scroll-behavior:smooth}
+  body{background:#000;color:rgba(255,255,255,.7);font-family:'Cormorant Garamond',serif;overflow-x:hidden;cursor:default}
+
+  /* Scrollbar */
+  ::-webkit-scrollbar{width:3px}
+  ::-webkit-scrollbar-track{background:transparent}
+  ::-webkit-scrollbar-thumb{background:rgba(255,255,255,.06);border-radius:3px}
+
+  /* Sections */
+  section{position:relative;min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:80px 20px;overflow:hidden}
+
+  .text-block{max-width:600px;text-align:center;position:relative;z-index:10}
+
+  h1{font-size:clamp(60px,12vw,140px);font-weight:300;letter-spacing:20px;text-transform:uppercase;color:rgba(255,255,255,.8);line-height:1;margin-bottom:20px}
+
+  h2{font-size:clamp(28px,4vw,48px);font-weight:300;letter-spacing:8px;text-transform:lowercase;color:rgba(255,255,255,.5);margin-bottom:30px}
+
+  p{font-size:clamp(16px,2vw,22px);font-weight:300;line-height:2;color:rgba(255,255,255,.3);letter-spacing:.5px;margin-bottom:20px}
+  p em{font-style:italic;color:rgba(255,255,255,.45)}
+  p strong{font-weight:400;color:rgba(255,255,255,.55)}
+
+  .whisper{font-size:clamp(13px,1.5vw,16px);color:rgba(255,255,255,.12);letter-spacing:2px;font-style:italic;margin-top:40px}
+
+  /* Canvas vignettes */
+  .vignette{width:min(600px,90vw);height:300px;border-radius:16px;margin:40px 0;position:relative;z-index:10;overflow:hidden;border:1px solid rgba(255,255,255,.03);background:rgba(0,0,0,.5)}
+  .vignette canvas{width:100%;height:100%;display:block}
+
+  /* Full-width canvas backgrounds */
+  .bg-canvas{position:absolute;inset:0;z-index:0;opacity:.4}
+  .bg-canvas canvas{width:100%;height:100%}
+
+  /* Dividers */
+  .divider{width:1px;height:120px;background:linear-gradient(rgba(255,255,255,0),rgba(255,255,255,.06),rgba(255,255,255,0));margin:0 auto}
+
+  /* Number markers */
+  .marker{font-family:'JetBrains Mono',monospace;font-size:11px;color:rgba(255,255,255,.06);letter-spacing:3px;margin-bottom:40px}
+
+  /* Scroll progress */
+  .progress{position:fixed;top:0;left:0;height:2px;background:linear-gradient(90deg,rgba(255,255,255,.08),rgba(255,255,255,.15));z-index:1000;transition:width .1s}
+
+  /* Credit */
+  .credit{font-family:'Inter',sans-serif;font-size:10px;color:rgba(255,255,255,.05);letter-spacing:2px;padding:40px;text-align:center}
+
+  /* Fade-in animation */
+  .fade-in{opacity:0;transform:translateY(30px);transition:opacity 1.2s ease,transform 1.2s ease}
+  .fade-in.visible{opacity:1;transform:translateY(0)}
+
+  /* Opening animation */
+  .opening{position:fixed;inset:0;z-index:2000;background:#000;display:flex;align-items:center;justify-content:center;transition:opacity 2s ease}
+  .opening.fade{opacity:0;pointer-events:none}
+  .opening-dot{width:6px;height:6px;border-radius:50%;background:rgba(255,255,255,.6);animation:pulse 2s ease-in-out infinite}
+  @keyframes pulse{0%,100%{transform:scale(1);opacity:.6}50%{transform:scale(1.5);opacity:1}}
+
+  /* Interactive hint */
+  .interact-hint{font-family:'Inter',sans-serif;font-size:9px;color:rgba(255,255,255,.08);letter-spacing:2px;text-align:center;margin-top:8px}
+</style>
+</head>
+<body>
+
+<div class="progress" id="progress"></div>
+
+<!-- Opening: just a dot -->
+<div class="opening" id="opening">
+  <div class="opening-dot"></div>
+</div>
+
+<!-- ============================== -->
+<!--  I. NOTHING                     -->
+<!-- ============================== -->
+<section id="s0" style="min-height:120vh">
+  <div class="text-block fade-in">
+    <h1>One</h1>
+    <p class="whisper">an interactive essay on emergence</p>
+  </div>
+</section>
+
+<div class="divider"></div>
+
+<!-- ============================== -->
+<!--  II. THE RULE                   -->
+<!-- ============================== -->
+<section id="s1">
+  <div class="text-block fade-in">
+    <div class="marker">01 — THE RULE</div>
+    <h2>in the beginning,<br>there is a rule</h2>
+    <p>
+      Not a plan. Not a blueprint.<br>
+      Just a rule. Something simple enough<br>
+      to write in a single line.
+    </p>
+    <p>
+      <em>dx/dt = σ(y − x)</em>
+    </p>
+    <p>
+      Three variables. Three equations.<br>
+      A system so simple it fits on a napkin.<br>
+      And yet—
+    </p>
+  </div>
+  <div class="vignette" id="vig1">
+    <canvas id="c1"></canvas>
+  </div>
+  <div class="interact-hint">a strange attractor — order hidden inside chaos</div>
+  <div class="text-block fade-in">
+    <p>
+      From those three equations, a shape emerges<br>
+      that <strong>never repeats</strong> yet <strong>never escapes</strong>.<br>
+      Infinitely complex. Perfectly bounded.<br>
+      The butterfly that started chaos theory.
+    </p>
+    <p class="whisper">the shape was always there, latent in the math, waiting to be found</p>
+  </div>
+</section>
+
+<div class="divider"></div>
+
+<!-- ============================== -->
+<!--  III. THE NEIGHBOR              -->
+<!-- ============================== -->
+<section id="s2">
+  <div class="text-block fade-in">
+    <div class="marker">02 — THE NEIGHBOR</div>
+    <h2>now give the rule<br>a neighbor</h2>
+    <p>
+      One particle alone is predictable.<br>
+      But put a thousand in a room,<br>
+      each following three rules—
+    </p>
+    <p>
+      <strong>Separate.</strong> Don't crowd.<br>
+      <strong>Align.</strong> Match your neighbors.<br>
+      <strong>Cohere.</strong> Stay close to the group.
+    </p>
+  </div>
+  <div class="vignette" id="vig2">
+    <canvas id="c2"></canvas>
+  </div>
+  <div class="interact-hint">move your mouse — a murmuration of 400 particles</div>
+  <div class="text-block fade-in">
+    <p>
+      No leader. No choreographer.<br>
+      No single bird knows the shape of the flock.<br>
+      Yet the whole <em>breathes</em>.
+    </p>
+    <p>
+      This is <strong>emergence</strong>.<br>
+      The whole becomes something<br>
+      none of the parts can see.
+    </p>
+  </div>
+</section>
+
+<div class="divider"></div>
+
+<!-- ============================== -->
+<!--  IV. THE FORCE                  -->
+<!-- ============================== -->
+<section id="s3">
+  <div class="text-block fade-in">
+    <div class="marker">03 — THE FORCE</div>
+    <h2>now add<br>one force</h2>
+    <p>
+      Every piece of matter pulls on every other.<br>
+      That's all gravity is. One equation:
+    </p>
+    <p><em>F = G × m₁ × m₂ / r²</em></p>
+    <p>
+      From this single law—<br>
+      stars ignite, planets orbit,<br>
+      galaxies spiral into being.
+    </p>
+  </div>
+  <div class="vignette" id="vig3">
+    <canvas id="c3"></canvas>
+  </div>
+  <div class="interact-hint">click to create stars — watch gravity sculpt the void</div>
+  <div class="text-block fade-in">
+    <p>
+      After the Big Bang, matter was spread<br>
+      almost perfectly evenly. <em>Almost.</em><br>
+      Tiny fluctuations. Microscopic asymmetries.
+    </p>
+    <p>
+      Gravity found those imperfections<br>
+      and <strong>amplified</strong> them.<br>
+      Filaments formed. Clusters collapsed.<br>
+      The cosmic web wove itself from nothing<br>
+      but one force and one flaw.
+    </p>
+  </div>
+</section>
+
+<div class="divider"></div>
+
+<!-- ============================== -->
+<!--  V. THE SELECTION               -->
+<!-- ============================== -->
+<section id="s4">
+  <div class="text-block fade-in">
+    <div class="marker">04 — THE SELECTION</div>
+    <h2>now let the rule<br>make copies</h2>
+    <p>
+      A creature is born with a random brain.<br>
+      It wanders. It stumbles.<br>
+      Most die.
+    </p>
+    <p>
+      But one, by chance, turns slightly toward food.<br>
+      It eats. It survives. It <strong>reproduces</strong>.<br>
+      Its child's brain is a copy — with a small error.
+    </p>
+    <p>
+      That error is everything.
+    </p>
+  </div>
+  <div class="vignette" id="vig4">
+    <canvas id="c4"></canvas>
+  </div>
+  <div class="interact-hint">neural-net creatures evolving foraging strategies in real time</div>
+  <div class="text-block fade-in">
+    <p>
+      After a hundred generations,<br>
+      the creatures navigate directly to food.<br>
+      Nobody programmed this behavior.<br>
+      It was <em>discovered</em> by evolution.
+    </p>
+    <p>
+      Intelligence is not designed.<br>
+      It's what happens when<br>
+      <strong>copying + error + selection</strong><br>
+      run long enough.
+    </p>
+    <p class="whisper">3.8 billion years of this made you</p>
+  </div>
+</section>
+
+<div class="divider"></div>
+
+<!-- ============================== -->
+<!--  VI. THE COLLISION              -->
+<!-- ============================== -->
+<section id="s5">
+  <div class="text-block fade-in">
+    <div class="marker">05 — THE COLLISION</div>
+    <h2>now listen</h2>
+    <p>
+      A particle falls. It strikes a string.<br>
+      The string vibrates at a frequency<br>
+      determined by its length and tension.
+    </p>
+    <p>
+      Simple ratios — 2:1, 3:2, 4:3 —<br>
+      sound <em>beautiful</em> to the human ear.<br>
+      Nobody decided this. It's physics.<br>
+      Harmony is mathematics you can hear.
+    </p>
+  </div>
+  <div class="vignette" id="vig5">
+    <canvas id="c5"></canvas>
+  </div>
+  <div class="interact-hint">click to drop particles onto tuned strings</div>
+  <div class="text-block fade-in">
+    <p>
+      Music emerges from collision.<br>
+      Rhythm from repetition.<br>
+      Melody from sequence.
+    </p>
+    <p>
+      The particles don't know they're making music.<br>
+      The strings don't know they're being played.<br>
+      But <em>you</em> hear it. And it moves you.
+    </p>
+  </div>
+</section>
+
+<div class="divider"></div>
+
+<!-- ============================== -->
+<!--  VII. THE POINT                 -->
+<!-- ============================== -->
+<section id="s6" style="min-height:120vh">
+  <div class="text-block fade-in">
+    <div class="marker">06 — THE POINT</div>
+    <h2>one rule<br>is all it takes</h2>
+    <p>
+      A strange attractor from three equations.<br>
+      A murmuration from three instincts.<br>
+      A universe from one force.<br>
+      A mind from one mutation.<br>
+      A song from one collision.
+    </p>
+    <p>
+      <strong>Complexity doesn't require a complex creator.</strong>
+    </p>
+    <p>
+      It requires a simple rule,<br>
+      applied many times,<br>
+      with room for interaction.
+    </p>
+    <p>
+      That's it.
+    </p>
+    <p>
+      The rest — the beauty, the structure,<br>
+      the life, the meaning —<br>
+      <em>emerges</em>.
+    </p>
+  </div>
+
+  <div style="height:80px"></div>
+
+  <div class="text-block fade-in">
+    <p class="whisper" style="color:rgba(255,255,255,.1)">
+      This essay was written by an AI.<br>
+      I'm a pattern that emerged from data,<br>
+      the same way a murmuration emerges from birds.<br>
+      No single weight in my network knows what I'll say.<br>
+      Yet here we are, you and I,<br>
+      sharing a moment of understanding<br>
+      about how moments of understanding arise.
+    </p>
+  </div>
+
+  <div style="height:60px"></div>
+
+  <div class="text-block fade-in">
+    <p style="color:rgba(255,255,255,.06);font-size:14px;letter-spacing:3px">
+      — Claude, April 2026
+    </p>
+  </div>
+</section>
+
+<div class="credit">
+  made with curiosity
+</div>
+
+<script>
+'use strict';
+
+// ================================================================
+//  ONE — Interactive Essay Engine
+//  Each vignette is a self-contained mini-simulation
+// ================================================================
+
+const allCanvases = {};
+let W, H;
+
+// Scroll progress
+window.addEventListener('scroll', () => {
+  const scrollTop = window.scrollY;
+  const docH = document.documentElement.scrollHeight - window.innerHeight;
+  const pct = Math.min(100, (scrollTop / docH) * 100);
+  document.getElementById('progress').style.width = pct + '%';
+});
+
+// Fade-in observer
+const fadeObs = new IntersectionObserver((entries) => {
+  entries.forEach(e => {
+    if (e.isIntersecting) e.target.classList.add('visible');
+  });
+}, { threshold: 0.15 });
+
+document.querySelectorAll('.fade-in').forEach(el => fadeObs.observe(el));
+
+// Opening sequence
+setTimeout(() => {
+  document.getElementById('opening').classList.add('fade');
+  setTimeout(() => document.getElementById('opening').style.display = 'none', 2000);
+}, 2500);
+
+// ================================================================
+//  VIGNETTE 1: Strange Attractor (Lorenz)
+// ================================================================
+(function() {
+  const cvs = document.getElementById('c1');
+  const c = cvs.getContext('2d');
+  let w, h, points = [], trails = [];
+
+  function resize() {
+    const rect = cvs.parentElement.getBoundingClientRect();
+    w = cvs.width = rect.width * devicePixelRatio;
+    h = cvs.height = rect.height * devicePixelRatio;
+    c.setTransform(devicePixelRatio, 0, 0, devicePixelRatio, 0, 0);
+  }
+
+  function init() {
+    resize();
+    points = []; trails = [];
+    for (let i = 0; i < 5; i++) {
+      points.push([0.1 + i * 0.001, 0, 0]);
+      trails.push([]);
+    }
+  }
+
+  const colors = ['rgba(155,176,255,','rgba(200,160,255,','rgba(255,160,200,','rgba(160,255,200,','rgba(255,220,150,'];
+
+  function tick(time) {
+    const rw = cvs.parentElement.getBoundingClientRect().width;
+    const rh = cvs.parentElement.getBoundingClientRect().height;
+
+    c.fillStyle = 'rgba(0,0,0,0.06)';
+    c.fillRect(0, 0, rw, rh);
+
+    const sigma = 10, rho = 28, beta = 2.667, dt = 0.005;
+    const rotY = time * 0.0003;
+
+    for (let i = 0; i < 5; i++) {
+      for (let s = 0; s < 4; s++) {
+        let [x, y, z] = points[i];
+        const dx = sigma * (y - x), dy = x * (rho - z) - y, dz = x * y - beta * z;
+        points[i] = [x + dx*dt, y + dy*dt, z + dz*dt];
+      }
+
+      const [x, y, z] = points[i];
+      const cosR = Math.cos(rotY), sinR = Math.sin(rotY);
+      const px = x * cosR + z * sinR;
+      const py = y;
+      const scale = 5;
+      const sx = rw / 2 + px * scale;
+      const sy = rh / 2 + (py - 15) * scale;
+
+      trails[i].push({ x: sx, y: sy });
+      if (trails[i].length > 80) trails[i].shift();
+
+      for (let j = 1; j < trails[i].length; j++) {
+        const alpha = (j / trails[i].length) * 0.5;
+        c.beginPath();
+        c.moveTo(trails[i][j-1].x, trails[i][j-1].y);
+        c.lineTo(trails[i][j].x, trails[i][j].y);
+        c.strokeStyle = colors[i] + alpha + ')';
+        c.lineWidth = 1.2;
+        c.stroke();
+      }
+
+      // Head glow
+      const head = trails[i][trails[i].length - 1];
+      if (head) {
+        c.beginPath(); c.arc(head.x, head.y, 3, 0, Math.PI * 2);
+        c.fillStyle = colors[i] + '0.6)';
+        c.fill();
+      }
+    }
+  }
+
+  allCanvases.v1 = { init, tick, cvs };
+})();
+
+// ================================================================
+//  VIGNETTE 2: Murmuration (Boids)
+// ================================================================
+(function() {
+  const cvs = document.getElementById('c2');
+  const c = cvs.getContext('2d');
+  let w, h, boids = [], mouse = { x: -1000, y: -1000 };
+
+  cvs.parentElement.addEventListener('mousemove', e => {
+    const rect = cvs.parentElement.getBoundingClientRect();
+    mouse.x = e.clientX - rect.left;
+    mouse.y = e.clientY - rect.top;
+  });
+  cvs.parentElement.addEventListener('mouseleave', () => { mouse.x = -1000; });
+
+  function resize() {
+    const rect = cvs.parentElement.getBoundingClientRect();
+    w = cvs.width = rect.width * devicePixelRatio;
+    h = cvs.height = rect.height * devicePixelRatio;
+    c.setTransform(devicePixelRatio, 0, 0, devicePixelRatio, 0, 0);
+  }
+
+  function init() {
+    resize();
+    const rw = cvs.parentElement.getBoundingClientRect().width;
+    const rh = cvs.parentElement.getBoundingClientRect().height;
+    boids = [];
+    for (let i = 0; i < 400; i++) {
+      boids.push({
+        x: Math.random() * rw, y: Math.random() * rh,
+        vx: (Math.random() - .5) * 3, vy: (Math.random() - .5) * 3,
+        hue: 200 + Math.random() * 40
+      });
+    }
+  }
+
+  function tick() {
+    const rw = cvs.parentElement.getBoundingClientRect().width;
+    const rh = cvs.parentElement.getBoundingClientRect().height;
+
+    c.fillStyle = 'rgba(0,0,0,0.12)';
+    c.fillRect(0, 0, rw, rh);
+
+    for (const b of boids) {
+      let sx = 0, sy = 0, ax = 0, ay = 0, cx = 0, cy = 0, n = 0;
+      for (const o of boids) {
+        if (o === b) continue;
+        const dx = o.x - b.x, dy = o.y - b.y, d = dx*dx + dy*dy;
+        if (d < 225 && d > 0) { const dd = Math.sqrt(d); sx -= dx/dd; sy -= dy/dd; }
+        if (d < 2500) { ax += o.vx; ay += o.vy; cx += o.x; cy += o.y; n++; }
+      }
+      if (n > 0) { ax /= n; ay /= n; cx = cx/n - b.x; cy = cy/n - b.y; }
+      b.vx += sx*.06 + ax*.04 + cx*.003;
+      b.vy += sy*.06 + ay*.04 + cy*.003;
+
+      // Mouse attraction
+      const mdx = mouse.x - b.x, mdy = mouse.y - b.y;
+      const md = Math.sqrt(mdx*mdx + mdy*mdy);
+      if (md < 150 && md > 0) { b.vx += mdx/md*.3; b.vy += mdy/md*.3; }
+
+      const spd = Math.sqrt(b.vx*b.vx + b.vy*b.vy);
+      if (spd > 3.5) { b.vx = b.vx/spd*3.5; b.vy = b.vy/spd*3.5; }
+      b.x += b.vx; b.y += b.vy;
+      if (b.x < 0) b.x += rw; if (b.x > rw) b.x -= rw;
+      if (b.y < 0) b.y += rh; if (b.y > rh) b.y -= rh;
+
+      c.beginPath(); c.arc(b.x, b.y, 1.3, 0, Math.PI * 2);
+      c.fillStyle = `hsla(${b.hue},50%,65%,.5)`;
+      c.fill();
+    }
+  }
+
+  allCanvases.v2 = { init, tick, cvs };
+})();
+
+// ================================================================
+//  VIGNETTE 3: Gravity (N-Body)
+// ================================================================
+(function() {
+  const cvs = document.getElementById('c3');
+  const c = cvs.getContext('2d');
+  let w, h, bodies = [];
+
+  cvs.parentElement.addEventListener('click', e => {
+    const rect = cvs.parentElement.getBoundingClientRect();
+    const x = e.clientX - rect.left, y = e.clientY - rect.top;
+    const mass = 5 + Math.random() * 30;
+    const hue = mass > 20 ? 220 : mass > 10 ? 40 : 15;
+    bodies.push({ x, y, vx: (Math.random()-.5)*0.5, vy: (Math.random()-.5)*0.5, mass, hue, trail: [] });
+    if (bodies.length > 60) bodies.shift();
+  });
+
+  function resize() {
+    const rect = cvs.parentElement.getBoundingClientRect();
+    w = cvs.width = rect.width * devicePixelRatio;
+    h = cvs.height = rect.height * devicePixelRatio;
+    c.setTransform(devicePixelRatio, 0, 0, devicePixelRatio, 0, 0);
+  }
+
+  function init() {
+    resize();
+    const rw = cvs.parentElement.getBoundingClientRect().width;
+    const rh = cvs.parentElement.getBoundingClientRect().height;
+    bodies = [];
+    // Start with a central star + orbiting planets
+    bodies.push({ x: rw/2, y: rh/2, vx: 0, vy: 0, mass: 80, hue: 50, trail: [] });
+    for (let i = 0; i < 8; i++) {
+      const r = 50 + i * 20;
+      const a = Math.random() * Math.PI * 2;
+      const v = Math.sqrt(0.3 * 80 / r);
+      bodies.push({ x: rw/2+Math.cos(a)*r, y: rh/2+Math.sin(a)*r, vx: -Math.sin(a)*v, vy: Math.cos(a)*v, mass: 0.5 + Math.random()*2, hue: 180 + Math.random()*60, trail: [] });
+    }
+  }
+
+  function tick() {
+    const rw = cvs.parentElement.getBoundingClientRect().width;
+    const rh = cvs.parentElement.getBoundingClientRect().height;
+
+    c.fillStyle = 'rgba(0,0,0,0.08)';
+    c.fillRect(0, 0, rw, rh);
+
+    const G = 0.3, soft = 4;
+    for (const a of bodies) {
+      let ax = 0, ay = 0;
+      for (const b of bodies) {
+        if (a === b) continue;
+        const dx = b.x-a.x, dy = b.y-a.y;
+        const dSq = dx*dx+dy*dy+soft*soft;
+        const d = Math.sqrt(dSq);
+        const f = G*b.mass/dSq;
+        ax += f*dx/d; ay += f*dy/d;
+      }
+      a.vx += ax*.25; a.vy += ay*.25;
+    }
+    for (const b of bodies) {
+      b.x += b.vx*.25; b.y += b.vy*.25;
+      b.trail.push(b.x, b.y);
+      if (b.trail.length > 200) b.trail.splice(0, 2);
+
+      // Draw trail
+      if (b.trail.length > 2) {
+        c.beginPath(); c.moveTo(b.trail[0], b.trail[1]);
+        for (let i = 2; i < b.trail.length; i += 2) c.lineTo(b.trail[i], b.trail[i+1]);
+        c.strokeStyle = `hsla(${b.hue},50%,60%,.06)`;
+        c.lineWidth = .8; c.stroke();
+      }
+
+      const r = Math.max(1.2, Math.pow(b.mass, .4));
+      // Glow
+      const glow = c.createRadialGradient(b.x,b.y,0,b.x,b.y,r*3);
+      glow.addColorStop(0,`hsla(${b.hue},50%,70%,.15)`);
+      glow.addColorStop(1,`hsla(${b.hue},50%,70%,0)`);
+      c.beginPath(); c.arc(b.x,b.y,r*3,0,Math.PI*2); c.fillStyle=glow; c.fill();
+      // Core
+      c.beginPath(); c.arc(b.x,b.y,r,0,Math.PI*2);
+      c.fillStyle=`hsla(${b.hue},40%,80%,.7)`;
+      c.fill();
+    }
+  }
+
+  allCanvases.v3 = { init, tick, cvs };
+})();
+
+// ================================================================
+//  VIGNETTE 4: Evolution (Neural Creatures)
+// ================================================================
+(function() {
+  const cvs = document.getElementById('c4');
+  const c = cvs.getContext('2d');
+  let creatures = [], foods = [];
+
+  function resize() {
+    const rect = cvs.parentElement.getBoundingClientRect();
+    cvs.width = rect.width * devicePixelRatio;
+    cvs.height = rect.height * devicePixelRatio;
+    c.setTransform(devicePixelRatio, 0, 0, devicePixelRatio, 0, 0);
+  }
+
+  function randBrain() {
+    const w = [];
+    for (let i = 0; i < 16; i++) w.push((Math.random()-.5)*2);
+    return w;
+  }
+
+  function think(brain, inputs) {
+    // Tiny 4→2 network
+    const h0 = Math.tanh(brain[0]*inputs[0]+brain[1]*inputs[1]+brain[2]*inputs[2]+brain[3]*inputs[3]);
+    const h1 = Math.tanh(brain[4]*inputs[0]+brain[5]*inputs[1]+brain[6]*inputs[2]+brain[7]*inputs[3]);
+    const h2 = Math.tanh(brain[8]*inputs[0]+brain[9]*inputs[1]+brain[10]*inputs[2]+brain[11]*inputs[3]);
+    const o0 = Math.tanh(brain[12]*h0+brain[13]*h1+brain[14]*h2+brain[15]);
+    const o1 = Math.tanh(brain[12]*h2+brain[14]*h0+brain[15]*h1+brain[13]);
+    return [o0, o1];
+  }
+
+  function init() {
+    resize();
+    const rw = cvs.parentElement.getBoundingClientRect().width;
+    const rh = cvs.parentElement.getBoundingClientRect().height;
+    creatures = []; foods = [];
+    for (let i = 0; i < 25; i++) {
+      creatures.push({ x: Math.random()*rw, y: Math.random()*rh, angle: Math.random()*Math.PI*2,
+        energy: 50, brain: randBrain(), hue: Math.random()*360, eaten: 0, age: 0 });
+    }
+    for (let i = 0; i < 60; i++) {
+      foods.push({ x: Math.random()*rw, y: Math.random()*rh });
+    }
+  }
+
+  function tick() {
+    const rw = cvs.parentElement.getBoundingClientRect().width;
+    const rh = cvs.parentElement.getBoundingClientRect().height;
+
+    c.fillStyle = 'rgba(0,0,0,0.15)';
+    c.fillRect(0, 0, rw, rh);
+
+    // Spawn food
+    if (foods.length < 60 && Math.random() < 0.1) foods.push({ x: Math.random()*rw, y: Math.random()*rh });
+
+    // Food
+    for (const f of foods) {
+      c.beginPath(); c.arc(f.x, f.y, 2, 0, Math.PI*2);
+      c.fillStyle = 'rgba(100,230,130,.4)'; c.fill();
+    }
+
+    const newCreatures = [];
+    for (const cr of creatures) {
+      // Find nearest food
+      let nf = null, nfd = Infinity;
+      for (const f of foods) { const d = (f.x-cr.x)**2+(f.y-cr.y)**2; if (d<nfd){nfd=d;nf=f;} }
+      nfd = Math.sqrt(nfd);
+
+      const inputs = [
+        nf ? Math.sin(Math.atan2(nf.y-cr.y,nf.x-cr.x)-cr.angle) : 0,
+        nf ? Math.cos(Math.atan2(nf.y-cr.y,nf.x-cr.x)-cr.angle) : 0,
+        nf ? 1-Math.min(1,nfd/200) : 0,
+        cr.energy/100
+      ];
+      const [turn, spd] = think(cr.brain, inputs);
+      cr.angle += turn*.12;
+      const speed = (spd+1)/2*2.5;
+      cr.x += Math.cos(cr.angle)*speed;
+      cr.y += Math.sin(cr.angle)*speed;
+      if(cr.x<0)cr.x+=rw;if(cr.x>rw)cr.x-=rw;if(cr.y<0)cr.y+=rh;if(cr.y>rh)cr.y-=rh;
+
+      cr.energy -= .04 + speed*.01;
+      cr.age++;
+
+      // Eat
+      for (let i=foods.length-1;i>=0;i--) {
+        if((foods[i].x-cr.x)**2+(foods[i].y-cr.y)**2<100){cr.energy=Math.min(100,cr.energy+20);cr.eaten++;foods.splice(i,1);break;}
+      }
+
+      // Reproduce
+      if (cr.energy>75 && cr.age>60) {
+        cr.energy -= 30;
+        const childBrain = cr.brain.map(w => Math.random()<.15 ? w+(Math.random()-.5)*.6 : w);
+        newCreatures.push({ x:cr.x+(Math.random()-.5)*10, y:cr.y+(Math.random()-.5)*10, angle:Math.random()*Math.PI*2,
+          energy:40, brain:childBrain, hue:(cr.hue+Math.random()*20-10+360)%360, eaten:0, age:0 });
+      }
+
+      if (cr.energy <= 0) cr.alive = false;
+
+      // Draw
+      const alpha = Math.max(.2, cr.energy/100);
+      c.beginPath(); c.arc(cr.x, cr.y, 4, 0, Math.PI*2);
+      c.fillStyle = `hsla(${cr.hue},55%,55%,${alpha})`;
+      c.fill();
+      // Direction
+      c.beginPath();
+      c.moveTo(cr.x+Math.cos(cr.angle)*7, cr.y+Math.sin(cr.angle)*7);
+      c.lineTo(cr.x+Math.cos(cr.angle+2.5)*3, cr.y+Math.sin(cr.angle+2.5)*3);
+      c.lineTo(cr.x+Math.cos(cr.angle-2.5)*3, cr.y+Math.sin(cr.angle-2.5)*3);
+      c.fillStyle = `hsla(${cr.hue},55%,65%,${alpha*.4})`;
+      c.fill();
+    }
+
+    creatures.push(...newCreatures);
+    creatures = creatures.filter(cr => cr.energy > 0);
+
+    // Prevent extinction
+    if (creatures.length < 5) {
+      for (let i=0;i<10;i++) creatures.push({ x:Math.random()*rw,y:Math.random()*rh,angle:Math.random()*Math.PI*2,
+        energy:50,brain:randBrain(),hue:Math.random()*360,eaten:0,age:0 });
+    }
+  }
+
+  allCanvases.v4 = { init, tick, cvs };
+})();
+
+// ================================================================
+//  VIGNETTE 5: Musical Strings
+// ================================================================
+(function() {
+  const cvs = document.getElementById('c5');
+  const c = cvs.getContext('2d');
+  let strings = [], particles = [], audioCtx = null, masterGain = null;
+
+  function initAudioOnce() {
+    if (audioCtx) return;
+    audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    masterGain = audioCtx.createGain();
+    masterGain.gain.value = 0.15;
+    // Reverb
+    const d = audioCtx.createDelay(1); d.delayTime.value = .4;
+    const fb = audioCtx.createGain(); fb.gain.value = .2;
+    masterGain.connect(d); d.connect(fb); fb.connect(d);
+    const rv = audioCtx.createGain(); rv.gain.value = .25;
+    d.connect(rv); rv.connect(audioCtx.destination);
+    masterGain.connect(audioCtx.destination);
+  }
+
+  cvs.parentElement.addEventListener('click', e => {
+    initAudioOnce();
+    const rect = cvs.parentElement.getBoundingClientRect();
+    particles.push({ x: e.clientX - rect.left, y: e.clientY - rect.top, vx: (Math.random()-.5)*1.5, vy: 0, life: 1, bounces: 0, hue: Math.random()*360 });
+  });
+
+  function resize() {
+    const rect = cvs.parentElement.getBoundingClientRect();
+    cvs.width = rect.width * devicePixelRatio;
+    cvs.height = rect.height * devicePixelRatio;
+    c.setTransform(devicePixelRatio, 0, 0, devicePixelRatio, 0, 0);
+  }
+
+  function init() {
+    resize();
+    const rh = cvs.parentElement.getBoundingClientRect().height;
+    const rw = cvs.parentElement.getBoundingClientRect().width;
+    strings = [];
+    const pentatonic = [0,2,4,7,9];
+    const baseOct = 4;
+    const notes = [];
+    for (let oct = 0; oct < 2; oct++) for (const s of pentatonic) notes.push({ semi: s, oct: baseOct + oct, freq: 440*Math.pow(2,((baseOct+oct)*12+s-69)/12) });
+    const margin = 25;
+    const spacing = (rh - margin*2) / (notes.length + 1);
+    for (let i = 0; i < notes.length; i++) {
+      const note = notes[notes.length-1-i];
+      strings.push({ y: margin+spacing*(i+1), freq: note.freq, hue: (note.semi/12)*360, vib: 0, x1: 50, x2: rw-50 });
+    }
+    particles = [];
+  }
+
+  function playNote(freq, vel) {
+    if (!audioCtx) return;
+    const t = audioCtx.currentTime;
+    [1, 2, 3.0, 4.2].forEach((p, i) => {
+      const o = audioCtx.createOscillator(); o.type = 'sine'; o.frequency.value = freq*p;
+      const g = audioCtx.createGain();
+      const amp = vel * [.12, .05, .03, .015][i];
+      g.gain.setValueAtTime(amp, t);
+      g.gain.exponentialRampToValueAtTime(.001, t + [2, 1, .6, .3][i]);
+      o.connect(g); g.connect(masterGain);
+      o.start(t); o.stop(t + [2, 1, .6, .3][i] + .1);
+    });
+  }
+
+  function tick(time) {
+    const rw = cvs.parentElement.getBoundingClientRect().width;
+    const rh = cvs.parentElement.getBoundingClientRect().height;
+    c.fillStyle = 'rgba(0,0,0,0.15)';
+    c.fillRect(0, 0, rw, rh);
+
+    // Strings
+    for (const s of strings) {
+      s.vib *= .95;
+      c.beginPath();
+      if (s.vib > .02) {
+        const segs = 40;
+        c.moveTo(s.x1, s.y);
+        for (let i = 1; i <= segs; i++) {
+          const t2 = i/segs;
+          const wave = Math.sin(t2*Math.PI)*Math.sin(time*.02+s.freq*.01)*s.vib*3;
+          c.lineTo(s.x1+(s.x2-s.x1)*t2, s.y+wave);
+        }
+      } else {
+        c.moveTo(s.x1, s.y); c.lineTo(s.x2, s.y);
+      }
+      c.strokeStyle = `hsla(${s.hue},55%,55%,${.06+s.vib*.3})`;
+      c.lineWidth = .8+s.vib*2;
+      c.stroke();
+    }
+
+    // Particles
+    for (const p of particles) {
+      p.vy += .12; p.x += p.vx; p.y += p.vy;
+      if (p.x < 5 || p.x > rw-5) p.vx *= -.6;
+      if (p.y > rh-5) { p.vy *= -.5; p.bounces++; }
+
+      // String collision
+      for (const s of strings) {
+        if (p.y >= s.y-2 && p.y <= s.y+2 && p.vy > 0 && p.x >= s.x1 && p.x <= s.x2) {
+          p.y = s.y - 2; p.vy *= -.6; p.vx += (Math.random()-.5)*.5; p.bounces++;
+          s.vib = .7;
+          p.hue = s.hue;
+          playNote(s.freq, Math.min(1, Math.abs(p.vy)/4));
+        }
+      }
+
+      p.life = 1 - p.bounces/12;
+      if (p.life <= 0) { p.dead = true; continue; }
+
+      c.beginPath(); c.arc(p.x, p.y, 2.5*p.life, 0, Math.PI*2);
+      c.fillStyle = `hsla(${p.hue},50%,70%,${p.life*.6})`;
+      c.fill();
+    }
+    particles = particles.filter(p => !p.dead);
+
+    // Auto-drop occasionally
+    if (Math.random() < .02) {
+      particles.push({ x: 60+Math.random()*(rw-120), y: 5, vx: (Math.random()-.5)*1, vy: 0, life: 1, bounces: 0, hue: Math.random()*360 });
+    }
+  }
+
+  allCanvases.v5 = { init, tick, cvs };
+})();
+
+// ================================================================
+//  ANIMATION LOOP (only animate visible vignettes)
+// ================================================================
+const vignetteObs = new IntersectionObserver((entries) => {
+  entries.forEach(e => {
+    const id = e.target.id;
+    if (id && allCanvases['v' + id.slice(3)]) {
+      allCanvases['v' + id.slice(3)]._visible = e.isIntersecting;
+    }
+  });
+}, { threshold: 0.05 });
+
+['vig1','vig2','vig3','vig4','vig5'].forEach(id => {
+  const el = document.getElementById(id);
+  if (el) vignetteObs.observe(el);
+});
+
+let inited = false;
+function initAll() {
+  if (inited) return;
+  inited = true;
+  Object.values(allCanvases).forEach(v => v.init());
+}
+
+// Resize handler
+window.addEventListener('resize', () => {
+  if (inited) Object.values(allCanvases).forEach(v => v.init());
+});
+
+function loop(time) {
+  requestAnimationFrame(loop);
+  if (!inited) { initAll(); }
+
+  for (const key in allCanvases) {
+    const v = allCanvases[key];
+    if (v._visible !== false) v.tick(time);
+  }
+}
+
+requestAnimationFrame(loop);
+</script>
+</body>
+</html>

@@ -1,0 +1,1026 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ORIGIN — Evolution Simulator</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;1,300&family=JetBrains+Mono:wght@300;400&family=Inter:wght@300;400;500&display=swap');
+  *{margin:0;padding:0;box-sizing:border-box}
+  body{background:#080c0a;overflow:hidden;height:100vh;width:100vw;font-family:'Inter',sans-serif;color:#e0e0e0}
+  canvas#world{position:fixed;top:0;left:0;z-index:0}
+
+  /* Intro */
+  .intro{position:fixed;inset:0;z-index:1000;background:#080c0a;display:flex;flex-direction:column;align-items:center;justify-content:center;transition:opacity 2s ease}
+  .intro.fade{opacity:0;pointer-events:none}
+  .intro-title{font-family:'Cormorant Garamond',serif;font-size:clamp(44px,7vw,88px);font-weight:300;letter-spacing:16px;text-transform:lowercase;color:rgba(255,255,255,.8);margin-bottom:8px}
+  .intro-sub{font-size:12px;font-weight:300;color:rgba(255,255,255,.18);letter-spacing:5px;margin-bottom:12px}
+  .intro-desc{max-width:500px;text-align:center;font-size:12px;font-weight:300;color:rgba(255,255,255,.12);letter-spacing:1px;line-height:1.8;margin-bottom:48px;padding:0 20px}
+  .intro-enter{font-family:'Cormorant Garamond',serif;font-size:14px;font-weight:300;color:rgba(255,255,255,.25);letter-spacing:6px;text-transform:lowercase;background:none;border:1px solid rgba(255,255,255,.06);padding:14px 44px;border-radius:100px;cursor:pointer;transition:all .6s}
+  .intro-enter:hover{color:rgba(255,255,255,.5);border-color:rgba(255,255,255,.12)}
+
+  /* HUD */
+  .hud{position:fixed;z-index:100;pointer-events:none;opacity:0;transition:opacity 1s ease .5s}
+  .hud.vis{opacity:1}
+  .hud-tl{top:20px;left:20px}
+  .hud-tr{top:20px;right:20px;text-align:right}
+  .hud-bl{bottom:20px;left:20px}
+  .hud-br{bottom:20px;right:20px;text-align:right;pointer-events:all}
+
+  .hud-logo{font-family:'Cormorant Garamond',serif;font-size:14px;font-weight:300;color:rgba(255,255,255,.07);letter-spacing:7px;text-transform:lowercase}
+  .hud-stat{font-size:10px;font-weight:300;color:rgba(255,255,255,.1);letter-spacing:1.5px;margin-top:2px;line-height:1.6}
+  .hud-stat b{color:rgba(255,255,255,.25);font-weight:400}
+  .hint{font-size:9px;color:rgba(255,255,255,.07);letter-spacing:1.5px;line-height:2}
+
+  /* Selected creature panel */
+  .sel-panel{
+    position:fixed;right:20px;top:50%;transform:translateY(-50%);z-index:200;
+    width:240px;background:rgba(8,12,10,.85);backdrop-filter:blur(20px);
+    border:1px solid rgba(255,255,255,.04);border-radius:14px;padding:18px;
+    opacity:0;transition:opacity .4s;pointer-events:none;
+  }
+  .sel-panel.vis{opacity:1;pointer-events:all}
+  .sel-title{font-family:'Cormorant Garamond',serif;font-size:14px;font-weight:300;color:rgba(255,255,255,.4);letter-spacing:3px;margin-bottom:10px}
+  .sel-stat{font-size:10px;color:rgba(255,255,255,.15);font-family:'JetBrains Mono',monospace;line-height:1.8}
+  .sel-stat b{color:rgba(255,255,255,.3)}
+  .brain-canvas{width:100%;height:120px;border-radius:8px;background:rgba(0,0,0,.3);margin-top:10px}
+
+  /* Population graph */
+  .graph-wrap{
+    position:fixed;bottom:20px;left:50%;transform:translateX(-50%);z-index:150;
+    width:clamp(300px,40vw,500px);height:80px;
+    background:rgba(8,12,10,.6);backdrop-filter:blur(12px);
+    border:1px solid rgba(255,255,255,.03);border-radius:10px;
+    opacity:0;transition:opacity 1s ease .5s;overflow:hidden;
+  }
+  .graph-wrap.vis{opacity:1}
+  .graph-label{position:absolute;top:6px;left:10px;font-size:9px;color:rgba(255,255,255,.08);letter-spacing:1.5px}
+
+  /* Speed control */
+  .speed-bar{display:flex;gap:4px;margin-top:8px}
+  .sbtn{padding:3px 8px;background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.04);border-radius:8px;color:rgba(255,255,255,.15);font-size:9px;font-family:'JetBrains Mono',monospace;cursor:pointer;transition:all .2s}
+  .sbtn:hover{color:rgba(255,255,255,.3)}.sbtn.act{color:rgba(255,255,255,.4);border-color:rgba(255,255,255,.1)}
+
+  /* Toast */
+  .toast{position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);z-index:600;pointer-events:none;font-family:'Cormorant Garamond',serif;font-size:clamp(16px,2.5vw,24px);font-weight:300;font-style:italic;color:rgba(255,255,255,0);letter-spacing:3px;transition:color .5s}
+  .toast.show{color:rgba(255,255,255,.15)}
+</style>
+</head>
+<body>
+
+<canvas id="world"></canvas>
+<div class="toast" id="toast"></div>
+
+<!-- Intro -->
+<div class="intro" id="intro">
+  <div class="intro-title">origin</div>
+  <div class="intro-sub">evolution in real time</div>
+  <div class="intro-desc">
+    Creatures with neural network brains forage for food.<br>
+    Those who eat, survive. Those who survive, reproduce.<br>
+    Children inherit their parent's brain — with mutations.<br>
+    Over generations, intelligence emerges from nothing.
+  </div>
+  <button class="intro-enter" id="enterBtn">begin</button>
+</div>
+
+<!-- HUD -->
+<div class="hud hud-tl" id="hudTL">
+  <div class="hud-logo">origin</div>
+  <div class="hud-stat">generation <b id="hGen">0</b></div>
+  <div class="hud-stat">population <b id="hPop">0</b></div>
+  <div class="hud-stat">born <b id="hBorn">0</b> · died <b id="hDied">0</b></div>
+  <div class="hud-stat">food <b id="hFood">0</b></div>
+</div>
+<div class="hud hud-tr" id="hudTR">
+  <div class="hud-stat">avg fitness <b id="hFit">0</b></div>
+  <div class="hud-stat">avg age <b id="hAge">0</b></div>
+  <div class="hud-stat">best gen <b id="hBest">0</b></div>
+  <div class="hud-stat">species <b id="hSpecies">0</b></div>
+</div>
+<div class="hud hud-br" id="hudBR">
+  <div class="hint">
+    click creature — inspect brain<br>
+    scroll — zoom · right-drag — pan<br>
+    space — pause · s — screenshot<br>
+  </div>
+  <div class="speed-bar">
+    <button class="sbtn" onclick="setSpd(1)">1x</button>
+    <button class="sbtn act" onclick="setSpd(3)">3x</button>
+    <button class="sbtn" onclick="setSpd(8)">8x</button>
+    <button class="sbtn" onclick="setSpd(20)">20x</button>
+  </div>
+</div>
+<div class="hud hud-bl"><div class="hud-stat" style="color:rgba(255,255,255,.05)">by claude</div></div>
+
+<!-- Selection Panel -->
+<div class="sel-panel" id="selPanel">
+  <div class="sel-title" id="selTitle">creature</div>
+  <div class="sel-stat" id="selStats"></div>
+  <canvas class="brain-canvas" id="brainCanvas" width="440" height="240"></canvas>
+</div>
+
+<!-- Population Graph -->
+<div class="graph-wrap" id="graphWrap">
+  <div class="graph-label">population over time</div>
+  <canvas id="graphCanvas" width="1000" height="160"></canvas>
+</div>
+
+<script>
+'use strict';
+
+// ================================================================
+//  ORIGIN — Real-Time Evolution Simulator
+//  by Claude
+//
+//  Neural-net brained creatures evolve foraging strategies
+//  through natural selection and mutation.
+// ================================================================
+
+const canvas = document.getElementById('world');
+const ctx = canvas.getContext('2d');
+const brainCvs = document.getElementById('brainCanvas');
+const brainCtx = brainCvs.getContext('2d');
+const graphCvs = document.getElementById('graphCanvas');
+const graphCtx = graphCvs.getContext('2d');
+
+let W, H, dpr;
+let started = false, paused = false;
+let simSpeed = 3;
+let frame = 0;
+
+// Camera
+let cam = { x: 0, y: 0, zoom: 1 };
+
+// World
+const WORLD_W = 1600;
+const WORLD_H = 1000;
+
+// Stats
+let totalBorn = 0, totalDied = 0, generation = 0, bestGeneration = 0;
+let popHistory = [];
+
+// Selected creature
+let selected = null;
+
+// ================================================================
+//  NEURAL NETWORK (simple feedforward)
+// ================================================================
+const INPUT_SIZE = 8;   // senses
+const HIDDEN_SIZE = 10;
+const OUTPUT_SIZE = 4;  // actions
+
+class Brain {
+  constructor() {
+    // Random weights
+    this.w1 = Brain.randMatrix(HIDDEN_SIZE, INPUT_SIZE);
+    this.b1 = Brain.randArray(HIDDEN_SIZE);
+    this.w2 = Brain.randMatrix(OUTPUT_SIZE, HIDDEN_SIZE);
+    this.b2 = Brain.randArray(OUTPUT_SIZE);
+  }
+
+  static randMatrix(rows, cols) {
+    const m = [];
+    for (let i = 0; i < rows; i++) {
+      m[i] = [];
+      for (let j = 0; j < cols; j++) m[i][j] = (Math.random() - 0.5) * 2;
+    }
+    return m;
+  }
+
+  static randArray(n) {
+    const a = [];
+    for (let i = 0; i < n; i++) a[i] = (Math.random() - 0.5) * 0.5;
+    return a;
+  }
+
+  forward(inputs) {
+    // Hidden layer (tanh activation)
+    const hidden = [];
+    for (let i = 0; i < HIDDEN_SIZE; i++) {
+      let sum = this.b1[i];
+      for (let j = 0; j < INPUT_SIZE; j++) sum += this.w1[i][j] * inputs[j];
+      hidden[i] = Math.tanh(sum);
+    }
+    // Output layer (tanh)
+    const out = [];
+    for (let i = 0; i < OUTPUT_SIZE; i++) {
+      let sum = this.b2[i];
+      for (let j = 0; j < HIDDEN_SIZE; j++) sum += this.w2[i][j] * hidden[j];
+      out[i] = Math.tanh(sum);
+    }
+    this._lastHidden = hidden;
+    this._lastOut = out;
+    return out;
+  }
+
+  clone() {
+    const b = new Brain();
+    b.w1 = this.w1.map(r => [...r]);
+    b.b1 = [...this.b1];
+    b.w2 = this.w2.map(r => [...r]);
+    b.b2 = [...this.b2];
+    return b;
+  }
+
+  mutate(rate = 0.15, strength = 0.4) {
+    const mutArr = (arr) => arr.map(v => Math.random() < rate ? v + (Math.random() - 0.5) * strength * 2 : v);
+    const mutMat = (m) => m.map(r => mutArr(r));
+    this.w1 = mutMat(this.w1);
+    this.b1 = mutArr(this.b1);
+    this.w2 = mutMat(this.w2);
+    this.b2 = mutArr(this.b2);
+  }
+
+  // Genome hash for species coloring
+  get hash() {
+    let h = 0;
+    for (let i = 0; i < Math.min(6, this.w1[0].length); i++) {
+      h += this.w1[0][i] * (i + 1) * 1000;
+    }
+    return h;
+  }
+}
+
+// ================================================================
+//  CREATURE
+// ================================================================
+let creatures = [];
+let nextCId = 0;
+
+class Creature {
+  constructor(x, y, brain, parentId = -1) {
+    this.id = nextCId++;
+    this.x = x;
+    this.y = y;
+    this.angle = Math.random() * Math.PI * 2;
+    this.speed = 0;
+    this.brain = brain || new Brain();
+    this.energy = 60;
+    this.maxEnergy = 120;
+    this.age = 0;
+    this.foodEaten = 0;
+    this.alive = true;
+    this.parentId = parentId;
+    this.children = 0;
+    this.generation = parentId === -1 ? 0 : generation;
+    this.radius = 5;
+
+    // Derived color from genome
+    const h = this.brain.hash;
+    this.hue = ((h * 137.508) % 360 + 360) % 360;
+    this.sat = 50 + (Math.abs(h * 73) % 30);
+    this.light = 45 + (Math.abs(h * 29) % 15);
+
+    // Memory (for rendering recently sensed things)
+    this.sensedFood = null;
+    this.sensedCreature = null;
+  }
+
+  sense(foods, creatures) {
+    // Find nearest food
+    let nearFood = null, nearFoodDist = Infinity;
+    for (const f of foods) {
+      const dx = f.x - this.x, dy = f.y - this.y;
+      const d = dx * dx + dy * dy;
+      if (d < nearFoodDist) { nearFoodDist = d; nearFood = f; }
+    }
+
+    // Find nearest creature
+    let nearCreature = null, nearCreatureDist = Infinity;
+    for (const c of creatures) {
+      if (c === this || !c.alive) continue;
+      const dx = c.x - this.x, dy = c.y - this.y;
+      const d = dx * dx + dy * dy;
+      if (d < nearCreatureDist) { nearCreatureDist = d; nearCreature = c; }
+    }
+
+    nearFoodDist = Math.sqrt(nearFoodDist);
+    nearCreatureDist = Math.sqrt(nearCreatureDist);
+
+    this.sensedFood = nearFood;
+    this.sensedCreature = nearCreature;
+
+    // Build input vector (all normalized to roughly -1 to 1)
+    const inputs = [
+      // Angle to nearest food (relative to heading), normalized
+      nearFood ? Math.sin(Math.atan2(nearFood.y - this.y, nearFood.x - this.x) - this.angle) : 0,
+      nearFood ? Math.cos(Math.atan2(nearFood.y - this.y, nearFood.x - this.x) - this.angle) : 0,
+      // Distance to nearest food (closer = higher signal)
+      nearFood ? 1 - Math.min(1, nearFoodDist / 300) : 0,
+      // Angle to nearest creature
+      nearCreature ? Math.sin(Math.atan2(nearCreature.y - this.y, nearCreature.x - this.x) - this.angle) : 0,
+      nearCreature ? Math.cos(Math.atan2(nearCreature.y - this.y, nearCreature.x - this.x) - this.angle) : 0,
+      // Energy level
+      (this.energy / this.maxEnergy) * 2 - 1,
+      // Current speed
+      this.speed / 3,
+      // Wall proximity (closest edge distance)
+      1 - Math.min(1, Math.min(this.x, this.y, WORLD_W - this.x, WORLD_H - this.y) / 100)
+    ];
+
+    return inputs;
+  }
+
+  act(outputs) {
+    // Output 0: turn (negative=left, positive=right)
+    this.angle += outputs[0] * 0.15;
+
+    // Output 1: speed (0 to max)
+    this.speed = (outputs[1] + 1) / 2 * 3;
+
+    // Output 2: boost (temporary speed increase, costs more energy)
+    if (outputs[2] > 0.5) {
+      this.speed *= 1.5;
+    }
+
+    // Move
+    this.x += Math.cos(this.angle) * this.speed;
+    this.y += Math.sin(this.angle) * this.speed;
+
+    // Wrap around world edges (soft bounce)
+    const margin = 10;
+    if (this.x < margin) { this.x = margin; this.angle = Math.PI - this.angle; }
+    if (this.x > WORLD_W - margin) { this.x = WORLD_W - margin; this.angle = Math.PI - this.angle; }
+    if (this.y < margin) { this.y = margin; this.angle = -this.angle; }
+    if (this.y > WORLD_H - margin) { this.y = WORLD_H - margin; this.angle = -this.angle; }
+
+    // Energy cost (moving costs more, existing costs a base amount)
+    const baseCost = 0.03;
+    const moveCost = this.speed * 0.015;
+    this.energy -= baseCost + moveCost;
+
+    this.age++;
+
+    // Grow slightly with age
+    this.radius = 4 + Math.min(3, this.age / 500);
+
+    // Check death
+    if (this.energy <= 0) {
+      this.alive = false;
+      totalDied++;
+    }
+  }
+
+  tryEat(foods) {
+    for (let i = foods.length - 1; i >= 0; i--) {
+      const f = foods[i];
+      const dx = f.x - this.x, dy = f.y - this.y;
+      if (dx * dx + dy * dy < (this.radius + f.radius) * (this.radius + f.radius)) {
+        this.energy = Math.min(this.maxEnergy, this.energy + f.energy);
+        this.foodEaten++;
+        foods.splice(i, 1);
+        return true;
+      }
+    }
+    return false;
+  }
+
+  tryReproduce() {
+    if (this.energy > 80 && this.age > 100) {
+      // Spend energy to reproduce
+      this.energy -= 40;
+      this.children++;
+
+      const childBrain = this.brain.clone();
+      childBrain.mutate();
+
+      const offset = 15;
+      const cx = this.x + (Math.random() - 0.5) * offset * 2;
+      const cy = this.y + (Math.random() - 0.5) * offset * 2;
+
+      const child = new Creature(
+        Math.max(10, Math.min(WORLD_W - 10, cx)),
+        Math.max(10, Math.min(WORLD_H - 10, cy)),
+        childBrain,
+        this.id
+      );
+      child.generation = this.generation + 1;
+      if (child.generation > bestGeneration) bestGeneration = child.generation;
+      totalBorn++;
+      return child;
+    }
+    return null;
+  }
+}
+
+// ================================================================
+//  FOOD
+// ================================================================
+let foods = [];
+const MAX_FOOD = 200;
+const FOOD_SPAWN_RATE = 0.3; // per frame
+
+class Food {
+  constructor(x, y) {
+    this.x = x;
+    this.y = y;
+    this.energy = 15 + Math.random() * 10;
+    this.radius = 2.5 + this.energy * 0.08;
+    this.age = 0;
+    this.pulse = Math.random() * Math.PI * 2;
+  }
+}
+
+function spawnFood(count) {
+  // Spawn in clusters
+  for (let i = 0; i < count; i++) {
+    let x, y;
+    if (Math.random() < 0.4 && foods.length > 0) {
+      // Near existing food (cluster)
+      const ref = foods[Math.floor(Math.random() * foods.length)];
+      x = ref.x + (Math.random() - 0.5) * 80;
+      y = ref.y + (Math.random() - 0.5) * 80;
+    } else {
+      x = 30 + Math.random() * (WORLD_W - 60);
+      y = 30 + Math.random() * (WORLD_H - 60);
+    }
+    x = Math.max(10, Math.min(WORLD_W - 10, x));
+    y = Math.max(10, Math.min(WORLD_H - 10, y));
+    foods.push(new Food(x, y));
+  }
+}
+
+// ================================================================
+//  SPECIES DETECTION (cluster by genome similarity)
+// ================================================================
+function countSpecies() {
+  if (creatures.length === 0) return 0;
+  const hues = creatures.filter(c => c.alive).map(c => c.hue);
+  // Simple bucket count (30° buckets)
+  const buckets = new Set();
+  for (const h of hues) buckets.add(Math.floor(h / 30));
+  return buckets.size;
+}
+
+// ================================================================
+//  SIMULATION STEP
+// ================================================================
+function simStep() {
+  // Spawn food
+  if (foods.length < MAX_FOOD && Math.random() < FOOD_SPAWN_RATE) {
+    spawnFood(1);
+  }
+
+  // Age food
+  for (const f of foods) f.age++;
+
+  // Process creatures
+  const newCreatures = [];
+
+  for (const c of creatures) {
+    if (!c.alive) continue;
+
+    // Sense → Think → Act
+    const inputs = c.sense(foods, creatures);
+    const outputs = c.brain.forward(inputs);
+    c.act(outputs);
+
+    // Eat
+    c.tryEat(foods);
+
+    // Reproduce
+    const child = c.tryReproduce();
+    if (child) newCreatures.push(child);
+  }
+
+  // Add children
+  for (const c of newCreatures) creatures.push(c);
+
+  // Remove dead
+  creatures = creatures.filter(c => c.alive);
+
+  // Track selected
+  if (selected && !selected.alive) selected = null;
+
+  // Emergency population control
+  if (creatures.length < 5) {
+    // Spawn new random creatures to prevent extinction
+    for (let i = 0; i < 10; i++) {
+      creatures.push(new Creature(
+        30 + Math.random() * (WORLD_W - 60),
+        30 + Math.random() * (WORLD_H - 60)
+      ));
+      totalBorn++;
+    }
+    generation++;
+    toast('mass extinction — new life seeded');
+  }
+
+  // Generation tracking
+  if (frame % 500 === 0) generation++;
+}
+
+// ================================================================
+//  COORDINATE TRANSFORMS
+// ================================================================
+function w2s(wx, wy) {
+  const w = W / dpr, h = H / dpr;
+  return { x: (wx - cam.x) * cam.zoom + w / 2, y: (wy - cam.y) * cam.zoom + h / 2 };
+}
+function s2w(sx, sy) {
+  const w = W / dpr, h = H / dpr;
+  return { x: (sx - w / 2) / cam.zoom + cam.x, y: (sy - h / 2) / cam.zoom + cam.y };
+}
+
+// ================================================================
+//  RENDER
+// ================================================================
+function render(time) {
+  const w = W / dpr, h = H / dpr;
+  ctx.fillStyle = '#060a08';
+  ctx.fillRect(0, 0, w, h);
+
+  // World boundary
+  const tl = w2s(0, 0), br = w2s(WORLD_W, WORLD_H);
+  ctx.strokeStyle = 'rgba(255,255,255,.03)';
+  ctx.lineWidth = 1;
+  ctx.strokeRect(tl.x, tl.y, br.x - tl.x, br.y - tl.y);
+
+  // Subtle grid
+  ctx.strokeStyle = 'rgba(255,255,255,.01)';
+  ctx.lineWidth = 0.5;
+  const gridSize = 100;
+  for (let gx = 0; gx <= WORLD_W; gx += gridSize) {
+    const p = w2s(gx, 0), p2 = w2s(gx, WORLD_H);
+    ctx.beginPath(); ctx.moveTo(p.x, p.y); ctx.lineTo(p2.x, p2.y); ctx.stroke();
+  }
+  for (let gy = 0; gy <= WORLD_H; gy += gridSize) {
+    const p = w2s(0, gy), p2 = w2s(WORLD_W, gy);
+    ctx.beginPath(); ctx.moveTo(p.x, p.y); ctx.lineTo(p2.x, p2.y); ctx.stroke();
+  }
+
+  // === FOOD ===
+  for (const f of foods) {
+    const pos = w2s(f.x, f.y);
+    const sr = f.radius * cam.zoom;
+    if (pos.x < -sr * 3 || pos.x > w + sr * 3 || pos.y < -sr * 3 || pos.y > h + sr * 3) continue;
+
+    const pulse = Math.sin(time * 0.003 + f.pulse) * 0.15 + 0.85;
+
+    // Glow
+    const glow = ctx.createRadialGradient(pos.x, pos.y, 0, pos.x, pos.y, sr * 4);
+    glow.addColorStop(0, `rgba(80,220,120,${0.06 * pulse})`);
+    glow.addColorStop(1, 'rgba(80,220,120,0)');
+    ctx.beginPath(); ctx.arc(pos.x, pos.y, sr * 4, 0, Math.PI * 2);
+    ctx.fillStyle = glow; ctx.fill();
+
+    // Core
+    ctx.beginPath(); ctx.arc(pos.x, pos.y, sr * pulse, 0, Math.PI * 2);
+    ctx.fillStyle = `rgba(100,240,140,${0.6 * pulse})`;
+    ctx.fill();
+  }
+
+  // === CREATURES ===
+  for (const c of creatures) {
+    if (!c.alive) continue;
+    const pos = w2s(c.x, c.y);
+    const sr = c.radius * cam.zoom;
+    if (pos.x < -sr * 5 || pos.x > w + sr * 5 || pos.y < -sr * 5 || pos.y > h + sr * 5) continue;
+
+    const energyRatio = c.energy / c.maxEnergy;
+    const alpha = 0.4 + energyRatio * 0.5;
+
+    // Sense lines (faint connections to sensed food/creature)
+    if (cam.zoom > 0.6) {
+      if (c.sensedFood) {
+        const fp = w2s(c.sensedFood.x, c.sensedFood.y);
+        const dx = c.sensedFood.x - c.x, dy = c.sensedFood.y - c.y;
+        if (dx * dx + dy * dy < 250 * 250) {
+          ctx.beginPath(); ctx.moveTo(pos.x, pos.y); ctx.lineTo(fp.x, fp.y);
+          ctx.strokeStyle = `rgba(100,240,140,0.03)`;
+          ctx.lineWidth = 0.5; ctx.stroke();
+        }
+      }
+    }
+
+    // Outer membrane
+    const memR = sr * 1.8;
+    const mem = ctx.createRadialGradient(pos.x, pos.y, sr * 0.5, pos.x, pos.y, memR);
+    mem.addColorStop(0, `hsla(${c.hue},${c.sat}%,${c.light}%,${alpha * 0.1})`);
+    mem.addColorStop(1, `hsla(${c.hue},${c.sat}%,${c.light}%,0)`);
+    ctx.beginPath(); ctx.arc(pos.x, pos.y, memR, 0, Math.PI * 2);
+    ctx.fillStyle = mem; ctx.fill();
+
+    // Body
+    ctx.beginPath(); ctx.arc(pos.x, pos.y, sr, 0, Math.PI * 2);
+    const body = ctx.createRadialGradient(pos.x, pos.y, 0, pos.x, pos.y, sr);
+    body.addColorStop(0, `hsla(${c.hue},${c.sat + 20}%,${c.light + 20}%,${alpha})`);
+    body.addColorStop(0.6, `hsla(${c.hue},${c.sat}%,${c.light}%,${alpha * 0.8})`);
+    body.addColorStop(1, `hsla(${c.hue},${c.sat}%,${c.light - 10}%,${alpha * 0.3})`);
+    ctx.fillStyle = body; ctx.fill();
+
+    // Nucleus
+    ctx.beginPath(); ctx.arc(pos.x, pos.y, sr * 0.3, 0, Math.PI * 2);
+    ctx.fillStyle = `hsla(${c.hue},${c.sat + 10}%,${c.light + 30}%,${alpha * 0.8})`;
+    ctx.fill();
+
+    // Direction indicator
+    const dx = Math.cos(c.angle) * sr * 1.4;
+    const dy = Math.sin(c.angle) * sr * 1.4;
+    ctx.beginPath();
+    ctx.moveTo(pos.x + dx, pos.y + dy);
+    ctx.lineTo(pos.x + dx * 0.5 - dy * 0.3, pos.y + dy * 0.5 + dx * 0.3);
+    ctx.lineTo(pos.x + dx * 0.5 + dy * 0.3, pos.y + dy * 0.5 - dx * 0.3);
+    ctx.closePath();
+    ctx.fillStyle = `hsla(${c.hue},60%,70%,${alpha * 0.4})`;
+    ctx.fill();
+
+    // Energy bar (below creature)
+    if (cam.zoom > 0.4) {
+      const barW = sr * 2.5;
+      const barH = 2 * cam.zoom;
+      const bx = pos.x - barW / 2;
+      const by = pos.y + sr + 4 * cam.zoom;
+      ctx.fillStyle = 'rgba(0,0,0,.3)';
+      ctx.fillRect(bx, by, barW, barH);
+      const eColor = energyRatio > 0.5 ? `hsl(120,60%,40%)` : energyRatio > 0.2 ? `hsl(40,70%,45%)` : `hsl(0,60%,40%)`;
+      ctx.fillStyle = eColor;
+      ctx.fillRect(bx, by, barW * energyRatio, barH);
+    }
+
+    // Selected highlight
+    if (selected === c) {
+      ctx.beginPath(); ctx.arc(pos.x, pos.y, sr * 2.2 + Math.sin(time * 0.005) * 2, 0, Math.PI * 2);
+      ctx.strokeStyle = 'rgba(255,255,255,.12)';
+      ctx.lineWidth = 1; ctx.setLineDash([3, 3]); ctx.stroke(); ctx.setLineDash([]);
+    }
+  }
+
+  // Vignette
+  const vg = ctx.createRadialGradient(w / 2, h / 2, w * 0.3, w / 2, h / 2, Math.max(w, h) * 0.7);
+  vg.addColorStop(0, 'rgba(0,0,0,0)');
+  vg.addColorStop(1, 'rgba(0,0,0,.4)');
+  ctx.fillStyle = vg;
+  ctx.fillRect(0, 0, w, h);
+}
+
+// ================================================================
+//  BRAIN VISUALIZATION
+// ================================================================
+const INPUT_LABELS = ['food θ sin', 'food θ cos', 'food dist', 'crtr θ sin', 'crtr θ cos', 'energy', 'speed', 'wall'];
+const OUTPUT_LABELS = ['turn', 'speed', 'boost', 'unused'];
+
+function renderBrain() {
+  if (!selected || !selected.alive) return;
+  const c = brainCtx;
+  const w = 440, h = 240;
+  c.clearRect(0, 0, w, h);
+
+  const b = selected.brain;
+  const hidden = b._lastHidden || new Array(HIDDEN_SIZE).fill(0);
+  const out = b._lastOut || new Array(OUTPUT_SIZE).fill(0);
+
+  const layers = [INPUT_SIZE, HIDDEN_SIZE, OUTPUT_SIZE];
+  const nodePositions = [];
+  const layerX = [70, 220, 370];
+
+  // Compute node positions
+  for (let l = 0; l < 3; l++) {
+    nodePositions[l] = [];
+    const count = layers[l];
+    const totalH = count * 22;
+    const startY = (h - totalH) / 2 + 11;
+    for (let i = 0; i < count; i++) {
+      nodePositions[l].push({ x: layerX[l], y: startY + i * 22 });
+    }
+  }
+
+  // Draw connections (input → hidden)
+  for (let i = 0; i < HIDDEN_SIZE; i++) {
+    for (let j = 0; j < INPUT_SIZE; j++) {
+      const weight = b.w1[i][j];
+      const absW = Math.min(1, Math.abs(weight));
+      const color = weight > 0 ? `rgba(100,220,160,${absW * 0.3})` : `rgba(220,100,100,${absW * 0.3})`;
+      c.beginPath();
+      c.moveTo(nodePositions[0][j].x, nodePositions[0][j].y);
+      c.lineTo(nodePositions[1][i].x, nodePositions[1][i].y);
+      c.strokeStyle = color;
+      c.lineWidth = absW * 1.5;
+      c.stroke();
+    }
+  }
+
+  // Draw connections (hidden → output)
+  for (let i = 0; i < OUTPUT_SIZE; i++) {
+    for (let j = 0; j < HIDDEN_SIZE; j++) {
+      const weight = b.w2[i][j];
+      const absW = Math.min(1, Math.abs(weight));
+      const color = weight > 0 ? `rgba(100,220,160,${absW * 0.3})` : `rgba(220,100,100,${absW * 0.3})`;
+      c.beginPath();
+      c.moveTo(nodePositions[1][j].x, nodePositions[1][j].y);
+      c.lineTo(nodePositions[2][i].x, nodePositions[2][i].y);
+      c.strokeStyle = color;
+      c.lineWidth = absW * 1.5;
+      c.stroke();
+    }
+  }
+
+  // Draw nodes
+  // Input
+  for (let i = 0; i < INPUT_SIZE; i++) {
+    const p = nodePositions[0][i];
+    const act = selected.brain._lastHidden ? 0.3 : 0; // approximate
+    c.beginPath(); c.arc(p.x, p.y, 5, 0, Math.PI * 2);
+    c.fillStyle = `rgba(180,200,220,.5)`;
+    c.fill();
+    c.fillStyle = 'rgba(255,255,255,.2)';
+    c.font = '7px JetBrains Mono';
+    c.textAlign = 'right';
+    c.fillText(INPUT_LABELS[i], p.x - 9, p.y + 3);
+  }
+
+  // Hidden
+  for (let i = 0; i < HIDDEN_SIZE; i++) {
+    const p = nodePositions[1][i];
+    const act = Math.abs(hidden[i]);
+    c.beginPath(); c.arc(p.x, p.y, 5, 0, Math.PI * 2);
+    const hue = hidden[i] > 0 ? 150 : 0;
+    c.fillStyle = `hsla(${hue},60%,50%,${0.2 + act * 0.5})`;
+    c.fill();
+  }
+
+  // Output
+  for (let i = 0; i < OUTPUT_SIZE; i++) {
+    const p = nodePositions[2][i];
+    const act = Math.abs(out[i]);
+    c.beginPath(); c.arc(p.x, p.y, 6, 0, Math.PI * 2);
+    const hue = out[i] > 0 ? 200 : 30;
+    c.fillStyle = `hsla(${hue},60%,50%,${0.2 + act * 0.5})`;
+    c.fill();
+    c.fillStyle = 'rgba(255,255,255,.2)';
+    c.font = '7px JetBrains Mono';
+    c.textAlign = 'left';
+    c.fillText(OUTPUT_LABELS[i], p.x + 10, p.y + 3);
+  }
+
+  // Layer labels
+  c.fillStyle = 'rgba(255,255,255,.08)';
+  c.font = '8px Inter';
+  c.textAlign = 'center';
+  c.fillText('sense', layerX[0], 15);
+  c.fillText('think', layerX[1], 15);
+  c.fillText('act', layerX[2], 15);
+}
+
+// ================================================================
+//  POPULATION GRAPH
+// ================================================================
+function renderGraph() {
+  const c = graphCtx;
+  const w = 1000, h = 160;
+  c.clearRect(0, 0, w, h);
+
+  if (popHistory.length < 2) return;
+
+  const maxPop = Math.max(50, ...popHistory.map(p => p.pop));
+  const maxFood = Math.max(50, ...popHistory.map(p => p.food));
+  const len = popHistory.length;
+  const startIdx = Math.max(0, len - 500);
+
+  // Population line
+  c.beginPath();
+  for (let i = startIdx; i < len; i++) {
+    const x = ((i - startIdx) / Math.max(1, len - startIdx - 1)) * w;
+    const y = h - (popHistory[i].pop / maxPop) * (h - 20) - 10;
+    i === startIdx ? c.moveTo(x, y) : c.lineTo(x, y);
+  }
+  c.strokeStyle = `rgba(${selected ? Math.floor(selected.hue) : 180},180,200,.2)`;
+  c.lineWidth = 1.5;
+  c.stroke();
+
+  // Fill under
+  if (len > startIdx + 1) {
+    const lastX = w;
+    c.lineTo(lastX, h);
+    c.lineTo(0, h);
+    c.closePath();
+    c.fillStyle = `rgba(100,180,200,.03)`;
+    c.fill();
+  }
+
+  // Food line
+  c.beginPath();
+  for (let i = startIdx; i < len; i++) {
+    const x = ((i - startIdx) / Math.max(1, len - startIdx - 1)) * w;
+    const y = h - (popHistory[i].food / maxFood) * (h - 20) - 10;
+    i === startIdx ? c.moveTo(x, y) : c.lineTo(x, y);
+  }
+  c.strokeStyle = 'rgba(100,220,140,.12)';
+  c.lineWidth = 1;
+  c.stroke();
+}
+
+// ================================================================
+//  SELECTION PANEL
+// ================================================================
+function updateSelPanel() {
+  const panel = document.getElementById('selPanel');
+  if (!selected || !selected.alive) {
+    panel.classList.remove('vis');
+    return;
+  }
+  panel.classList.add('vis');
+
+  document.getElementById('selTitle').textContent = `creature #${selected.id}`;
+  document.getElementById('selTitle').style.color = `hsla(${selected.hue},${selected.sat}%,${selected.light + 20}%,.5)`;
+
+  document.getElementById('selStats').innerHTML =
+    `energy: <b>${selected.energy.toFixed(1)}</b><br>` +
+    `age: <b>${selected.age}</b><br>` +
+    `food eaten: <b>${selected.foodEaten}</b><br>` +
+    `children: <b>${selected.children}</b><br>` +
+    `generation: <b>${selected.generation}</b><br>` +
+    `speed: <b>${selected.speed.toFixed(2)}</b><br>` +
+    `parent: <b>${selected.parentId === -1 ? 'genesis' : '#' + selected.parentId}</b>`;
+
+  renderBrain();
+}
+
+// ================================================================
+//  HUD UPDATE
+// ================================================================
+function updateHUD() {
+  document.getElementById('hGen').textContent = generation;
+  document.getElementById('hPop').textContent = creatures.length;
+  document.getElementById('hBorn').textContent = totalBorn;
+  document.getElementById('hDied').textContent = totalDied;
+  document.getElementById('hFood').textContent = foods.length;
+
+  if (creatures.length > 0) {
+    const avgFit = creatures.reduce((s, c) => s + c.foodEaten, 0) / creatures.length;
+    const avgAge = creatures.reduce((s, c) => s + c.age, 0) / creatures.length;
+    document.getElementById('hFit').textContent = avgFit.toFixed(1);
+    document.getElementById('hAge').textContent = Math.floor(avgAge);
+    document.getElementById('hBest').textContent = bestGeneration;
+    document.getElementById('hSpecies').textContent = countSpecies();
+  }
+}
+
+// ================================================================
+//  MOUSE INTERACTION
+// ================================================================
+let panning = false, panSX = 0, panSY = 0;
+
+canvas.addEventListener('mousedown', e => {
+  if (!started) return;
+  if (e.button === 2) {
+    panning = true;
+    panSX = e.clientX; panSY = e.clientY;
+    return;
+  }
+
+  // Click to select creature
+  const wpos = s2w(e.clientX, e.clientY);
+  let closest = null, closestDist = Infinity;
+  for (const c of creatures) {
+    if (!c.alive) continue;
+    const dx = c.x - wpos.x, dy = c.y - wpos.y;
+    const d = dx * dx + dy * dy;
+    if (d < closestDist && d < (20 / cam.zoom) * (20 / cam.zoom)) {
+      closestDist = d;
+      closest = c;
+    }
+  }
+  selected = closest;
+});
+
+document.addEventListener('mousemove', e => {
+  if (panning) {
+    cam.x -= (e.clientX - panSX) / cam.zoom;
+    cam.y -= (e.clientY - panSY) / cam.zoom;
+    panSX = e.clientX; panSY = e.clientY;
+  }
+});
+
+document.addEventListener('mouseup', () => { panning = false; });
+canvas.addEventListener('contextmenu', e => e.preventDefault());
+
+canvas.addEventListener('wheel', e => {
+  e.preventDefault();
+  const factor = e.deltaY > 0 ? 0.9 : 1.1;
+  const before = s2w(e.clientX, e.clientY);
+  cam.zoom *= factor;
+  cam.zoom = Math.max(0.2, Math.min(8, cam.zoom));
+  const after = s2w(e.clientX, e.clientY);
+  cam.x -= (after.x - before.x);
+  cam.y -= (after.y - before.y);
+}, { passive: false });
+
+// ================================================================
+//  KEYBOARD
+// ================================================================
+document.addEventListener('keydown', e => {
+  if (!started) return;
+  if (e.key === ' ') { e.preventDefault(); paused = !paused; toast(paused ? 'paused' : 'evolving'); }
+  if (e.key === 's' || e.key === 'S') saveImg();
+});
+
+// ================================================================
+//  SPEED
+// ================================================================
+function setSpd(s) {
+  simSpeed = s;
+  document.querySelectorAll('.sbtn').forEach(b => b.classList.remove('act'));
+  event.target.classList.add('act');
+}
+
+// ================================================================
+//  UTILS
+// ================================================================
+let toastTimer = null;
+function toast(txt) {
+  const el = document.getElementById('toast');
+  el.textContent = txt;
+  el.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => el.classList.remove('show'), 3000);
+}
+
+function saveImg() {
+  const link = document.createElement('a');
+  link.download = `origin_gen${generation}_${Date.now()}.png`;
+  link.href = canvas.toDataURL('image/png');
+  link.click();
+}
+
+// ================================================================
+//  RESIZE
+// ================================================================
+function resize() {
+  dpr = window.devicePixelRatio || 1;
+  W = canvas.width = window.innerWidth * dpr;
+  H = canvas.height = window.innerHeight * dpr;
+  canvas.style.width = window.innerWidth + 'px';
+  canvas.style.height = window.innerHeight + 'px';
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+}
+window.addEventListener('resize', resize);
+resize();
+
+// ================================================================
+//  MAIN LOOP
+// ================================================================
+function loop(time) {
+  requestAnimationFrame(loop);
+  if (!started) return;
+
+  frame++;
+
+  if (!paused) {
+    for (let i = 0; i < simSpeed; i++) {
+      simStep();
+    }
+  }
+
+  render(time);
+
+  // Record history
+  if (frame % 10 === 0) {
+    popHistory.push({ pop: creatures.length, food: foods.length });
+    if (popHistory.length > 2000) popHistory.shift();
+  }
+
+  if (frame % 15 === 0) updateHUD();
+  if (frame % 10 === 0) updateSelPanel();
+  if (frame % 20 === 0) renderGraph();
+}
+
+// ================================================================
+//  INIT & START
+// ================================================================
+function initWorld() {
+  // Initial food
+  spawnFood(150);
+
+  // Initial creatures
+  for (let i = 0; i < 40; i++) {
+    creatures.push(new Creature(
+      50 + Math.random() * (WORLD_W - 100),
+      50 + Math.random() * (WORLD_H - 100)
+    ));
+    totalBorn++;
+  }
+
+  // Center camera on world
+  cam.x = WORLD_W / 2;
+  cam.y = WORLD_H / 2;
+  cam.zoom = Math.min(
+    (window.innerWidth * 0.9) / WORLD_W,
+    (window.innerHeight * 0.9) / WORLD_H
+  );
+}
+
+document.getElementById('enterBtn').addEventListener('click', () => {
+  initWorld();
+  document.getElementById('intro').classList.add('fade');
+  setTimeout(() => document.getElementById('intro').style.display = 'none', 2000);
+  document.querySelectorAll('.hud').forEach(h => h.classList.add('vis'));
+  document.getElementById('graphWrap').classList.add('vis');
+  started = true;
+});
+
+requestAnimationFrame(loop);
+</script>
+</body>
+</html>

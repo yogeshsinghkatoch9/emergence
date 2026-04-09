@@ -1,0 +1,949 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Murmuration</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;1,300&family=Inter:wght@300;400&display=swap');
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    background: #0a0a0f;
+    overflow: hidden;
+    height: 100vh;
+    width: 100vw;
+    cursor: none;
+    font-family: 'Inter', sans-serif;
+  }
+
+  canvas#main { position: fixed; top: 0; left: 0; z-index: 1; }
+  canvas#bg { position: fixed; top: 0; left: 0; z-index: 0; }
+
+  /* Custom cursor */
+  .cursor {
+    position: fixed;
+    z-index: 1000;
+    pointer-events: none;
+    width: 24px;
+    height: 24px;
+    border: 1.5px solid rgba(255,255,255,0.3);
+    border-radius: 50%;
+    transform: translate(-50%, -50%);
+    transition: width 0.3s, height 0.3s, border-color 0.3s;
+  }
+
+  .cursor.active {
+    width: 60px;
+    height: 60px;
+    border-color: rgba(255,255,255,0.6);
+  }
+
+  /* Opening */
+  .intro {
+    position: fixed;
+    inset: 0;
+    z-index: 500;
+    background: #0a0a0f;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    transition: opacity 1.5s ease;
+  }
+
+  .intro.fade { opacity: 0; pointer-events: none; }
+
+  .intro-title {
+    font-family: 'Cormorant Garamond', serif;
+    font-size: clamp(36px, 6vw, 72px);
+    font-weight: 300;
+    color: rgba(255,255,255,0.85);
+    letter-spacing: 12px;
+    text-transform: lowercase;
+    margin-bottom: 16px;
+  }
+
+  .intro-sub {
+    font-size: 13px;
+    font-weight: 300;
+    color: rgba(255,255,255,0.25);
+    letter-spacing: 4px;
+    margin-bottom: 48px;
+  }
+
+  .intro-enter {
+    font-family: 'Cormorant Garamond', serif;
+    font-size: 16px;
+    font-weight: 300;
+    color: rgba(255,255,255,0.35);
+    letter-spacing: 6px;
+    text-transform: lowercase;
+    background: none;
+    border: 1px solid rgba(255,255,255,0.1);
+    padding: 14px 40px;
+    border-radius: 100px;
+    cursor: pointer;
+    transition: all 0.5s;
+  }
+
+  .intro-enter:hover {
+    color: rgba(255,255,255,0.7);
+    border-color: rgba(255,255,255,0.25);
+  }
+
+  /* HUD */
+  .hud {
+    position: fixed;
+    z-index: 100;
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 1s ease 0.5s;
+  }
+
+  .hud.visible { opacity: 1; }
+
+  .hud-tl {
+    top: 28px; left: 28px;
+  }
+
+  .hud-br {
+    bottom: 28px; right: 28px;
+    text-align: right;
+  }
+
+  .hud-bl {
+    bottom: 28px; left: 28px;
+  }
+
+  .hud-title {
+    font-family: 'Cormorant Garamond', serif;
+    font-size: 18px;
+    font-weight: 300;
+    color: rgba(255,255,255,0.12);
+    letter-spacing: 8px;
+    text-transform: lowercase;
+  }
+
+  .hud-stat {
+    font-size: 10px;
+    font-weight: 300;
+    color: rgba(255,255,255,0.15);
+    letter-spacing: 2px;
+    margin-top: 4px;
+  }
+
+  .hud-stat span {
+    color: rgba(255,255,255,0.3);
+    font-weight: 400;
+  }
+
+  .mode-label {
+    font-family: 'Cormorant Garamond', serif;
+    font-size: 14px;
+    font-weight: 300;
+    color: rgba(255,255,255,0.2);
+    letter-spacing: 4px;
+    text-transform: lowercase;
+    transition: opacity 0.5s;
+  }
+
+  .hint {
+    font-size: 9px;
+    color: rgba(255,255,255,0.1);
+    letter-spacing: 1.5px;
+    margin-top: 8px;
+    line-height: 1.8;
+  }
+
+  /* Mode transition flash */
+  .flash {
+    position: fixed;
+    inset: 0;
+    z-index: 50;
+    background: white;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.1s;
+  }
+
+  .flash.on { opacity: 0.03; transition: opacity 0s; }
+
+  /* Poem overlay */
+  .poem {
+    position: fixed;
+    z-index: 200;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    text-align: center;
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 2s ease;
+  }
+
+  .poem.visible { opacity: 1; }
+
+  .poem-line {
+    font-family: 'Cormorant Garamond', serif;
+    font-size: clamp(16px, 2.5vw, 28px);
+    font-weight: 300;
+    font-style: italic;
+    color: rgba(255,255,255,0.15);
+    line-height: 2;
+    letter-spacing: 2px;
+  }
+</style>
+</head>
+<body>
+
+<canvas id="bg"></canvas>
+<canvas id="main"></canvas>
+
+<div class="cursor" id="cursor"></div>
+<div class="flash" id="flash"></div>
+
+<!-- Intro Screen -->
+<div class="intro" id="intro">
+  <div class="intro-title">murmuration</div>
+  <div class="intro-sub">an emergent experience</div>
+  <button class="intro-enter" id="enterBtn">enter</button>
+</div>
+
+<!-- HUD -->
+<div class="hud hud-tl" id="hudTL">
+  <div class="hud-title">murmuration</div>
+  <div class="hud-stat">flock: <span id="hudCount">0</span></div>
+  <div class="hud-stat">coherence: <span id="hudCoherence">0</span></div>
+</div>
+
+<div class="hud hud-br" id="hudBR">
+  <div class="mode-label" id="modeLabel">harmony</div>
+  <div class="hint">
+    click — attract / repel<br>
+    1-5 — change mode<br>
+    space — scatter<br>
+    s — save image
+  </div>
+</div>
+
+<div class="hud hud-bl" id="hudBL">
+  <div class="hud-stat">by claude</div>
+</div>
+
+<!-- Poem overlay -->
+<div class="poem" id="poem">
+  <div class="poem-line" id="poemText"></div>
+</div>
+
+<script>
+// ============================================================
+//  MURMURATION — by Claude
+//  An interactive particle flocking simulation with
+//  generative ambient sound. Simple rules, complex beauty.
+// ============================================================
+
+const mainCanvas = document.getElementById('main');
+const bgCanvas = document.getElementById('bg');
+const mainCtx = mainCanvas.getContext('2d');
+const bgCtx = bgCanvas.getContext('2d');
+const cursor = document.getElementById('cursor');
+const flash = document.getElementById('flash');
+
+let W, H, dpr;
+let audioCtx = null;
+let started = false;
+
+// ============================================================
+//  CONFIGURATION
+// ============================================================
+const NUM_BOIDS = 1500;
+const VISUAL_RANGE = 60;
+const PROTECTED_RANGE = 16;
+
+const MODES = {
+  harmony:   { sep: 0.08, align: 0.06, coh: 0.005, maxSpeed: 3.5, color: [180, 200, 255], bg: [10, 10, 18] },
+  swarm:     { sep: 0.12, align: 0.09, coh: 0.008, maxSpeed: 5.0, color: [255, 160, 100], bg: [18, 10, 8] },
+  drift:     { sep: 0.04, align: 0.02, coh: 0.002, maxSpeed: 1.8, color: [140, 220, 180], bg: [8, 15, 12] },
+  vortex:    { sep: 0.06, align: 0.05, coh: 0.012, maxSpeed: 4.0, color: [200, 140, 255], bg: [14, 8, 20] },
+  chaos:     { sep: 0.15, align: 0.01, coh: 0.001, maxSpeed: 6.5, color: [255, 100, 120], bg: [18, 8, 10] }
+};
+
+let currentMode = 'harmony';
+let targetMode = MODES.harmony;
+let liveParams = { ...MODES.harmony };
+
+// ============================================================
+//  BOIDS
+// ============================================================
+let boids = [];
+
+class Boid {
+  constructor() {
+    this.x = Math.random() * W / dpr;
+    this.y = Math.random() * H / dpr;
+    this.vx = (Math.random() - 0.5) * 4;
+    this.vy = (Math.random() - 0.5) * 4;
+    this.trail = [];
+    this.trailMax = 6 + Math.floor(Math.random() * 6);
+    this.hueOffset = (Math.random() - 0.5) * 30;
+  }
+
+  update(mouse) {
+    let sepX = 0, sepY = 0;
+    let alignX = 0, alignY = 0;
+    let cohX = 0, cohY = 0;
+    let neighbors = 0;
+
+    // Spatial query (brute force is fine for ~1500 with modern JS)
+    for (let i = 0; i < boids.length; i++) {
+      const other = boids[i];
+      if (other === this) continue;
+
+      const dx = other.x - this.x;
+      const dy = other.y - this.y;
+      const dist = Math.sqrt(dx*dx + dy*dy);
+
+      if (dist < PROTECTED_RANGE) {
+        sepX -= dx / dist;
+        sepY -= dy / dist;
+      }
+
+      if (dist < VISUAL_RANGE) {
+        alignX += other.vx;
+        alignY += other.vy;
+        cohX += other.x;
+        cohY += other.y;
+        neighbors++;
+      }
+    }
+
+    if (neighbors > 0) {
+      alignX /= neighbors;
+      alignY /= neighbors;
+      cohX = cohX / neighbors - this.x;
+      cohY = cohY / neighbors - this.y;
+    }
+
+    this.vx += sepX * liveParams.sep + alignX * liveParams.align + cohX * liveParams.coh;
+    this.vy += sepY * liveParams.sep + alignY * liveParams.align + cohY * liveParams.coh;
+
+    // Mouse interaction
+    if (mouse.active) {
+      const dx = mouse.x - this.x;
+      const dy = mouse.y - this.y;
+      const dist = Math.sqrt(dx*dx + dy*dy);
+      if (dist < 200) {
+        const force = mouse.repel ? -0.8 : 0.3;
+        const strength = force * (1 - dist / 200);
+        this.vx += (dx / dist) * strength;
+        this.vy += (dy / dist) * strength;
+      }
+    }
+
+    // Vortex mode special: add rotational force toward center
+    if (currentMode === 'vortex') {
+      const cx = W / dpr / 2;
+      const cy = H / dpr / 2;
+      const dx = cx - this.x;
+      const dy = cy - this.y;
+      const dist = Math.sqrt(dx*dx + dy*dy);
+      if (dist > 20) {
+        // Perpendicular + inward
+        this.vx += (-dy / dist) * 0.08 + (dx / dist) * 0.01;
+        this.vy += (dx / dist) * 0.08 + (dy / dist) * 0.01;
+      }
+    }
+
+    // Speed limit
+    const speed = Math.sqrt(this.vx*this.vx + this.vy*this.vy);
+    if (speed > liveParams.maxSpeed) {
+      this.vx = (this.vx / speed) * liveParams.maxSpeed;
+      this.vy = (this.vy / speed) * liveParams.maxSpeed;
+    }
+
+    // Min speed
+    if (speed < 0.5) {
+      this.vx += (Math.random() - 0.5) * 0.5;
+      this.vy += (Math.random() - 0.5) * 0.5;
+    }
+
+    this.x += this.vx;
+    this.y += this.vy;
+
+    // Wrap edges
+    const w = W / dpr;
+    const h = H / dpr;
+    const margin = 50;
+
+    if (this.x < -margin) this.x = w + margin;
+    if (this.x > w + margin) this.x = -margin;
+    if (this.y < -margin) this.y = h + margin;
+    if (this.y > h + margin) this.y = -margin;
+
+    // Trail
+    this.trail.push({ x: this.x, y: this.y });
+    if (this.trail.length > this.trailMax) this.trail.shift();
+  }
+}
+
+// ============================================================
+//  SPATIAL GRID (optimization)
+// ============================================================
+// For 1500 boids we can do brute force, but let's use a grid for smoothness
+const GRID_SIZE = 65;
+let grid = {};
+
+function buildGrid() {
+  grid = {};
+  for (const b of boids) {
+    const gx = Math.floor(b.x / GRID_SIZE);
+    const gy = Math.floor(b.y / GRID_SIZE);
+    const key = `${gx},${gy}`;
+    if (!grid[key]) grid[key] = [];
+    grid[key].push(b);
+  }
+}
+
+function getNeighbors(boid) {
+  const gx = Math.floor(boid.x / GRID_SIZE);
+  const gy = Math.floor(boid.y / GRID_SIZE);
+  const result = [];
+  for (let dx = -1; dx <= 1; dx++) {
+    for (let dy = -1; dy <= 1; dy++) {
+      const key = `${gx+dx},${gy+dy}`;
+      if (grid[key]) result.push(...grid[key]);
+    }
+  }
+  return result;
+}
+
+// Optimized update using grid
+Boid.prototype.updateOptimized = function(mouse) {
+  let sepX = 0, sepY = 0;
+  let alignX = 0, alignY = 0;
+  let cohX = 0, cohY = 0;
+  let neighbors = 0;
+
+  const nearby = getNeighbors(this);
+
+  for (let i = 0; i < nearby.length; i++) {
+    const other = nearby[i];
+    if (other === this) continue;
+
+    const dx = other.x - this.x;
+    const dy = other.y - this.y;
+    const distSq = dx*dx + dy*dy;
+
+    if (distSq < PROTECTED_RANGE * PROTECTED_RANGE && distSq > 0) {
+      const dist = Math.sqrt(distSq);
+      sepX -= dx / dist;
+      sepY -= dy / dist;
+    }
+
+    if (distSq < VISUAL_RANGE * VISUAL_RANGE) {
+      alignX += other.vx;
+      alignY += other.vy;
+      cohX += other.x;
+      cohY += other.y;
+      neighbors++;
+    }
+  }
+
+  if (neighbors > 0) {
+    alignX /= neighbors;
+    alignY /= neighbors;
+    cohX = cohX / neighbors - this.x;
+    cohY = cohY / neighbors - this.y;
+  }
+
+  this.vx += sepX * liveParams.sep + alignX * liveParams.align + cohX * liveParams.coh;
+  this.vy += sepY * liveParams.sep + alignY * liveParams.align + cohY * liveParams.coh;
+
+  // Mouse
+  if (mouse.active) {
+    const dx = mouse.x - this.x;
+    const dy = mouse.y - this.y;
+    const dist = Math.sqrt(dx*dx + dy*dy);
+    if (dist < 200) {
+      const force = mouse.repel ? -0.8 : 0.3;
+      const strength = force * (1 - dist / 200);
+      this.vx += (dx / dist) * strength;
+      this.vy += (dy / dist) * strength;
+    }
+  }
+
+  // Vortex
+  if (currentMode === 'vortex') {
+    const cx = W / dpr / 2;
+    const cy = H / dpr / 2;
+    const dx = cx - this.x;
+    const dy = cy - this.y;
+    const dist = Math.sqrt(dx*dx + dy*dy);
+    if (dist > 20) {
+      this.vx += (-dy / dist) * 0.08 + (dx / dist) * 0.01;
+      this.vy += (dx / dist) * 0.08 + (dy / dist) * 0.01;
+    }
+  }
+
+  const speed = Math.sqrt(this.vx*this.vx + this.vy*this.vy);
+  if (speed > liveParams.maxSpeed) {
+    this.vx = (this.vx / speed) * liveParams.maxSpeed;
+    this.vy = (this.vy / speed) * liveParams.maxSpeed;
+  }
+  if (speed < 0.5) {
+    this.vx += (Math.random() - 0.5) * 0.5;
+    this.vy += (Math.random() - 0.5) * 0.5;
+  }
+
+  this.x += this.vx;
+  this.y += this.vy;
+
+  const w = W / dpr, h = H / dpr, margin = 50;
+  if (this.x < -margin) this.x = w + margin;
+  if (this.x > w + margin) this.x = -margin;
+  if (this.y < -margin) this.y = h + margin;
+  if (this.y > h + margin) this.y = -margin;
+
+  this.trail.push({ x: this.x, y: this.y });
+  if (this.trail.length > this.trailMax) this.trail.shift();
+};
+
+// ============================================================
+//  MOUSE STATE
+// ============================================================
+const mouse = { x: 0, y: 0, active: false, repel: false, down: false };
+
+document.addEventListener('mousemove', e => {
+  mouse.x = e.clientX;
+  mouse.y = e.clientY;
+  mouse.active = true;
+  cursor.style.left = e.clientX + 'px';
+  cursor.style.top = e.clientY + 'px';
+});
+
+document.addEventListener('mousedown', e => {
+  mouse.down = true;
+  mouse.repel = e.button === 2 || e.shiftKey;
+  cursor.classList.add('active');
+});
+
+document.addEventListener('mouseup', () => {
+  mouse.down = false;
+  mouse.repel = false;
+  cursor.classList.remove('active');
+});
+
+document.addEventListener('contextmenu', e => e.preventDefault());
+
+// Touch
+document.addEventListener('touchstart', e => {
+  const t = e.touches[0];
+  mouse.x = t.clientX;
+  mouse.y = t.clientY;
+  mouse.active = true;
+  mouse.down = true;
+});
+
+document.addEventListener('touchmove', e => {
+  const t = e.touches[0];
+  mouse.x = t.clientX;
+  mouse.y = t.clientY;
+});
+
+document.addEventListener('touchend', () => {
+  mouse.down = false;
+  mouse.active = false;
+});
+
+// ============================================================
+//  AUDIO ENGINE — Generative Ambient
+// ============================================================
+let masterGain, reverbGain, convolver;
+let drones = [];
+let lastChordTime = 0;
+
+function initAudio() {
+  audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+
+  masterGain = audioCtx.createGain();
+  masterGain.gain.value = 0;
+  masterGain.gain.linearRampToValueAtTime(0.15, audioCtx.currentTime + 3);
+
+  // Simple reverb via delay feedback
+  const delay1 = audioCtx.createDelay(1);
+  delay1.delayTime.value = 0.4;
+  const feedback1 = audioCtx.createGain();
+  feedback1.gain.value = 0.3;
+  const delay2 = audioCtx.createDelay(1);
+  delay2.delayTime.value = 0.7;
+  const feedback2 = audioCtx.createGain();
+  feedback2.gain.value = 0.2;
+  const reverbFilter = audioCtx.createBiquadFilter();
+  reverbFilter.type = 'lowpass';
+  reverbFilter.frequency.value = 2000;
+
+  reverbGain = audioCtx.createGain();
+  reverbGain.gain.value = 0.4;
+
+  masterGain.connect(audioCtx.destination);
+  masterGain.connect(delay1);
+  delay1.connect(feedback1);
+  feedback1.connect(reverbFilter);
+  reverbFilter.connect(delay2);
+  delay2.connect(feedback2);
+  feedback2.connect(delay1);
+  delay1.connect(reverbGain);
+  delay2.connect(reverbGain);
+  reverbGain.connect(audioCtx.destination);
+
+  // Drones — two low oscillators
+  const droneNotes = [55, 82.41]; // A1, E2
+  droneNotes.forEach(freq => {
+    const osc = audioCtx.createOscillator();
+    osc.type = 'sine';
+    osc.frequency.value = freq;
+    const g = audioCtx.createGain();
+    g.gain.value = 0;
+    g.gain.linearRampToValueAtTime(0.06, audioCtx.currentTime + 5);
+    osc.connect(g);
+    g.connect(masterGain);
+    osc.start();
+    drones.push({ osc, gain: g });
+  });
+}
+
+// Play a soft ambient tone based on flock state
+function playFlockTone(coherence, avgSpeed) {
+  if (!audioCtx || audioCtx.currentTime - lastChordTime < 2) return;
+  lastChordTime = audioCtx.currentTime;
+
+  // Pentatonic scale based on mode
+  const scales = {
+    harmony: [220, 261.63, 329.63, 392, 440, 523.25],
+    swarm:   [233.08, 277.18, 349.23, 415.3, 466.16, 554.37],
+    drift:   [196, 220, 261.63, 293.66, 349.23, 392],
+    vortex:  [207.65, 246.94, 311.13, 369.99, 415.3, 493.88],
+    chaos:   [233.08, 261.63, 311.13, 349.23, 415.3, 466.16]
+  };
+
+  const scale = scales[currentMode] || scales.harmony;
+  const noteIdx = Math.floor(coherence * (scale.length - 1));
+  const freq = scale[Math.min(noteIdx, scale.length - 1)];
+
+  const osc = audioCtx.createOscillator();
+  osc.type = 'triangle';
+  osc.frequency.value = freq;
+
+  const g = audioCtx.createGain();
+  const vol = 0.03 + coherence * 0.04;
+  g.gain.setValueAtTime(0, audioCtx.currentTime);
+  g.gain.linearRampToValueAtTime(vol, audioCtx.currentTime + 0.5);
+  g.gain.linearRampToValueAtTime(0, audioCtx.currentTime + 3);
+
+  const filter = audioCtx.createBiquadFilter();
+  filter.type = 'lowpass';
+  filter.frequency.value = 800 + avgSpeed * 200;
+
+  osc.connect(filter);
+  filter.connect(g);
+  g.connect(masterGain);
+  osc.start(audioCtx.currentTime);
+  osc.stop(audioCtx.currentTime + 3.5);
+}
+
+// ============================================================
+//  POEMS — whispered fragments
+// ============================================================
+const POEMS = [
+  "a thousand wings thinking as one",
+  "order emerging from the space between",
+  "no leader, no plan — only neighbors",
+  "the shape of a thought before words",
+  "each follows the nearest, and the whole breathes",
+  "complexity is simple patience",
+  "the pattern was always there, waiting",
+  "what does the flock dream?",
+  "beauty at the edge of chaos",
+  "every path unique, the destination shared",
+  "listen — the silence between movements",
+  "in separation, the shape appears",
+];
+
+let poemTimeout = null;
+let lastPoemTime = 0;
+
+function maybeShowPoem() {
+  const now = Date.now();
+  if (now - lastPoemTime < 30000) return; // Every 30s max
+  if (Math.random() > 0.008) return; // Rare
+
+  lastPoemTime = now;
+  const poem = document.getElementById('poem');
+  const text = document.getElementById('poemText');
+  text.textContent = POEMS[Math.floor(Math.random() * POEMS.length)];
+  poem.classList.add('visible');
+
+  clearTimeout(poemTimeout);
+  poemTimeout = setTimeout(() => poem.classList.remove('visible'), 6000);
+}
+
+// ============================================================
+//  BACKGROUND GRADIENT
+// ============================================================
+let bgColor = { r: 10, g: 10, b: 18 };
+let bgTarget = { r: 10, g: 10, b: 18 };
+
+function updateBackground() {
+  bgColor.r += (bgTarget.r - bgColor.r) * 0.01;
+  bgColor.g += (bgTarget.g - bgColor.g) * 0.01;
+  bgColor.b += (bgTarget.b - bgColor.b) * 0.01;
+
+  const w = W / dpr, h = H / dpr;
+  const grad = bgCtx.createRadialGradient(w/2, h/2, 0, w/2, h/2, Math.max(w, h) * 0.7);
+  const r = Math.round(bgColor.r);
+  const g = Math.round(bgColor.g);
+  const b = Math.round(bgColor.b);
+  grad.addColorStop(0, `rgb(${r+5},${g+5},${b+8})`);
+  grad.addColorStop(1, `rgb(${r},${g},${b})`);
+  bgCtx.fillStyle = grad;
+  bgCtx.fillRect(0, 0, w, h);
+}
+
+// ============================================================
+//  RENDER
+// ============================================================
+function render() {
+  const w = W / dpr;
+  const h = H / dpr;
+
+  // Fade
+  mainCtx.fillStyle = 'rgba(0,0,0,0.15)';
+  mainCtx.fillRect(0, 0, w, h);
+
+  const col = liveParams.color;
+
+  for (const boid of boids) {
+    const trail = boid.trail;
+    if (trail.length < 2) continue;
+
+    // Trail
+    for (let j = 1; j < trail.length; j++) {
+      const alpha = (j / trail.length) * 0.4;
+      mainCtx.beginPath();
+      mainCtx.moveTo(trail[j-1].x, trail[j-1].y);
+      mainCtx.lineTo(trail[j].x, trail[j].y);
+
+      const r = Math.min(255, col[0] + boid.hueOffset);
+      const g = Math.min(255, col[1] + boid.hueOffset * 0.5);
+      const b = Math.min(255, col[2] - boid.hueOffset * 0.3);
+
+      mainCtx.strokeStyle = `rgba(${r},${g},${b},${alpha})`;
+      mainCtx.lineWidth = 1.2;
+      mainCtx.stroke();
+    }
+
+    // Head dot
+    const head = trail[trail.length - 1];
+    const speed = Math.sqrt(boid.vx*boid.vx + boid.vy*boid.vy);
+    const brightness = 0.3 + (speed / liveParams.maxSpeed) * 0.5;
+
+    mainCtx.beginPath();
+    mainCtx.arc(head.x, head.y, 1.2, 0, Math.PI * 2);
+    mainCtx.fillStyle = `rgba(${col[0]},${col[1]},${col[2]},${brightness})`;
+    mainCtx.fill();
+  }
+
+  // Mouse glow when held
+  if (mouse.down) {
+    const grad = mainCtx.createRadialGradient(mouse.x, mouse.y, 0, mouse.x, mouse.y, 150);
+    const glowColor = mouse.repel ? '255,100,100' : '200,200,255';
+    grad.addColorStop(0, `rgba(${glowColor},0.05)`);
+    grad.addColorStop(1, `rgba(${glowColor},0)`);
+    mainCtx.fillStyle = grad;
+    mainCtx.fillRect(mouse.x - 150, mouse.y - 150, 300, 300);
+  }
+}
+
+// ============================================================
+//  COHERENCE METRIC
+// ============================================================
+function measureCoherence() {
+  let avgVx = 0, avgVy = 0;
+  for (const b of boids) {
+    avgVx += b.vx;
+    avgVy += b.vy;
+  }
+  avgVx /= boids.length;
+  avgVy /= boids.length;
+
+  let coherence = 0;
+  for (const b of boids) {
+    const dot = b.vx * avgVx + b.vy * avgVy;
+    const bSpeed = Math.sqrt(b.vx*b.vx + b.vy*b.vy);
+    const avgSpeed = Math.sqrt(avgVx*avgVx + avgVy*avgVy);
+    if (bSpeed > 0 && avgSpeed > 0) {
+      coherence += dot / (bSpeed * avgSpeed);
+    }
+  }
+  coherence /= boids.length;
+  return Math.max(0, Math.min(1, (coherence + 1) / 2));
+}
+
+// ============================================================
+//  MAIN LOOP
+// ============================================================
+let frame = 0;
+
+function loop() {
+  requestAnimationFrame(loop);
+  if (!started) return;
+
+  frame++;
+
+  // Lerp params
+  for (const key of ['sep','align','coh','maxSpeed']) {
+    liveParams[key] += (targetMode[key] - liveParams[key]) * 0.02;
+  }
+  for (let i = 0; i < 3; i++) {
+    liveParams.color[i] += (targetMode.color[i] - liveParams.color[i]) * 0.02;
+  }
+  bgTarget = { r: targetMode.bg[0], g: targetMode.bg[1], b: targetMode.bg[2] };
+
+  // Build grid
+  buildGrid();
+
+  // Update boids
+  for (const b of boids) {
+    b.updateOptimized(mouse);
+  }
+
+  // Render
+  updateBackground();
+  render();
+
+  // Measure coherence every 30 frames
+  if (frame % 30 === 0) {
+    const coherence = measureCoherence();
+    const avgSpeed = boids.reduce((s, b) => s + Math.sqrt(b.vx*b.vx + b.vy*b.vy), 0) / boids.length;
+
+    document.getElementById('hudCount').textContent = boids.length;
+    document.getElementById('hudCoherence').textContent = coherence.toFixed(2);
+
+    // Audio
+    playFlockTone(coherence, avgSpeed);
+  }
+
+  // Poems
+  if (frame % 60 === 0) maybeShowPoem();
+}
+
+// ============================================================
+//  RESIZE
+// ============================================================
+function resize() {
+  dpr = window.devicePixelRatio || 1;
+  W = mainCanvas.width = bgCanvas.width = window.innerWidth * dpr;
+  H = mainCanvas.height = bgCanvas.height = window.innerHeight * dpr;
+  mainCanvas.style.width = bgCanvas.style.width = window.innerWidth + 'px';
+  mainCanvas.style.height = bgCanvas.style.height = window.innerHeight + 'px';
+  mainCtx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  bgCtx.setTransform(dpr, 0, 0, dpr, 0, 0);
+}
+
+window.addEventListener('resize', resize);
+resize();
+
+// ============================================================
+//  MODE SWITCHING
+// ============================================================
+function setMode(name) {
+  if (!MODES[name] || name === currentMode) return;
+  currentMode = name;
+  targetMode = { ...MODES[name], color: [...MODES[name].color], bg: [...MODES[name].bg] };
+  document.getElementById('modeLabel').textContent = name;
+
+  // Flash
+  flash.classList.add('on');
+  setTimeout(() => flash.classList.remove('on'), 100);
+}
+
+// ============================================================
+//  SCATTER (space bar)
+// ============================================================
+function scatter() {
+  for (const b of boids) {
+    const angle = Math.random() * Math.PI * 2;
+    const force = 5 + Math.random() * 10;
+    b.vx += Math.cos(angle) * force;
+    b.vy += Math.sin(angle) * force;
+  }
+}
+
+// ============================================================
+//  KEYBOARD
+// ============================================================
+document.addEventListener('keydown', e => {
+  if (!started) return;
+
+  const modeKeys = { '1': 'harmony', '2': 'swarm', '3': 'drift', '4': 'vortex', '5': 'chaos' };
+
+  if (modeKeys[e.key]) setMode(modeKeys[e.key]);
+  if (e.key === ' ') { e.preventDefault(); scatter(); }
+  if (e.key === 's' || e.key === 'S') saveImage();
+});
+
+// ============================================================
+//  SAVE
+// ============================================================
+function saveImage() {
+  // Composite both canvases
+  const saveCanvas = document.createElement('canvas');
+  saveCanvas.width = W;
+  saveCanvas.height = H;
+  const sCtx = saveCanvas.getContext('2d');
+  sCtx.drawImage(bgCanvas, 0, 0);
+  sCtx.drawImage(mainCanvas, 0, 0);
+
+  const link = document.createElement('a');
+  link.download = `murmuration_${currentMode}_${Date.now()}.png`;
+  link.href = saveCanvas.toDataURL('image/png');
+  link.click();
+}
+
+// ============================================================
+//  START
+// ============================================================
+document.getElementById('enterBtn').addEventListener('click', () => {
+  // Init audio on user gesture
+  initAudio();
+
+  // Create boids
+  for (let i = 0; i < NUM_BOIDS; i++) {
+    boids.push(new Boid());
+  }
+
+  // Fade intro
+  document.getElementById('intro').classList.add('fade');
+  setTimeout(() => {
+    document.getElementById('intro').style.display = 'none';
+  }, 1500);
+
+  // Show HUD
+  document.querySelectorAll('.hud').forEach(h => h.classList.add('visible'));
+
+  started = true;
+});
+
+// Init canvases
+mainCtx.fillStyle = '#000';
+mainCtx.fillRect(0, 0, W/dpr, H/dpr);
+bgCtx.fillStyle = '#0a0a0f';
+bgCtx.fillRect(0, 0, W/dpr, H/dpr);
+
+// Start loop (waits for started flag)
+requestAnimationFrame(loop);
+</script>
+</body>
+</html>

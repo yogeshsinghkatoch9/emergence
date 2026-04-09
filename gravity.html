@@ -1,0 +1,1011 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Gravity — Universe Sandbox</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@300;400&family=JetBrains+Mono:wght@300;400&family=Inter:wght@300;400;500&display=swap');
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    background: #000;
+    overflow: hidden;
+    height: 100vh;
+    width: 100vw;
+    font-family: 'Inter', sans-serif;
+    cursor: crosshair;
+  }
+
+  canvas { position: fixed; top: 0; left: 0; }
+  #bgCanvas { z-index: 0; }
+  #mainCanvas { z-index: 1; }
+  #fxCanvas { z-index: 2; pointer-events: none; }
+
+  /* Intro */
+  .intro {
+    position: fixed; inset: 0; z-index: 500;
+    background: #000;
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+    transition: opacity 2s ease;
+  }
+  .intro.fade { opacity: 0; pointer-events: none; }
+  .intro-title {
+    font-family: 'Cormorant Garamond', serif;
+    font-size: clamp(40px, 7vw, 80px);
+    font-weight: 300; color: rgba(255,255,255,0.8);
+    letter-spacing: 16px; text-transform: lowercase;
+    margin-bottom: 12px;
+  }
+  .intro-sub {
+    font-size: 12px; font-weight: 300;
+    color: rgba(255,255,255,0.2); letter-spacing: 5px;
+    margin-bottom: 48px;
+  }
+  .intro-enter {
+    font-family: 'Cormorant Garamond', serif;
+    font-size: 15px; font-weight: 300;
+    color: rgba(255,255,255,0.3); letter-spacing: 5px;
+    background: none; border: 1px solid rgba(255,255,255,0.08);
+    padding: 13px 36px; border-radius: 100px;
+    cursor: pointer; transition: all 0.5s;
+    text-transform: lowercase;
+  }
+  .intro-enter:hover {
+    color: rgba(255,255,255,0.6);
+    border-color: rgba(255,255,255,0.2);
+  }
+
+  /* HUD */
+  .hud {
+    position: fixed; z-index: 100; pointer-events: none;
+    opacity: 0; transition: opacity 1s ease 0.5s;
+  }
+  .hud.visible { opacity: 1; }
+
+  .hud-tl { top: 24px; left: 24px; }
+  .hud-tr { top: 24px; right: 24px; text-align: right; }
+  .hud-bl { bottom: 24px; left: 24px; }
+  .hud-br { bottom: 24px; right: 24px; text-align: right; }
+
+  .hud-title {
+    font-family: 'Cormorant Garamond', serif;
+    font-size: 16px; font-weight: 300;
+    color: rgba(255,255,255,0.1);
+    letter-spacing: 8px; text-transform: lowercase;
+  }
+
+  .hud-stat {
+    font-size: 10px; font-weight: 300;
+    color: rgba(255,255,255,0.12); letter-spacing: 1.5px;
+    margin-top: 3px;
+  }
+  .hud-stat span { color: rgba(255,255,255,0.25); }
+
+  .hud-hint {
+    font-size: 9px; color: rgba(255,255,255,0.08);
+    letter-spacing: 1.5px; line-height: 2;
+  }
+
+  /* Mass indicator */
+  .mass-ring {
+    position: fixed; z-index: 200;
+    pointer-events: none;
+    border: 1.5px solid rgba(255,200,100,0.3);
+    border-radius: 50%;
+    transform: translate(-50%, -50%);
+    transition: width 0.1s, height 0.1s;
+    display: none;
+  }
+
+  .mass-label {
+    position: fixed; z-index: 200;
+    pointer-events: none;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px; color: rgba(255,200,100,0.4);
+    transform: translate(-50%, 20px);
+    display: none;
+  }
+
+  /* Preset buttons */
+  .presets {
+    position: fixed; top: 24px; left: 50%;
+    transform: translateX(-50%);
+    z-index: 100; display: flex; gap: 6px;
+    opacity: 0; transition: opacity 1s ease 0.5s;
+    pointer-events: none;
+  }
+  .presets.visible { opacity: 1; pointer-events: all; }
+
+  .preset-btn {
+    padding: 6px 14px;
+    background: rgba(255,255,255,0.03);
+    border: 1px solid rgba(255,255,255,0.06);
+    border-radius: 20px;
+    color: rgba(255,255,255,0.25);
+    font-family: 'Inter', sans-serif;
+    font-size: 10px; font-weight: 400;
+    cursor: pointer; transition: all 0.3s;
+    letter-spacing: 1px;
+  }
+  .preset-btn:hover {
+    background: rgba(255,255,255,0.06);
+    color: rgba(255,255,255,0.5);
+  }
+
+  /* Event notification */
+  .event-toast {
+    position: fixed; top: 50%; left: 50%;
+    transform: translate(-50%, -50%);
+    z-index: 300; pointer-events: none;
+    font-family: 'Cormorant Garamond', serif;
+    font-size: 22px; font-weight: 300;
+    color: rgba(255,255,255,0);
+    letter-spacing: 4px;
+    transition: color 0.3s;
+    text-transform: lowercase;
+  }
+  .event-toast.show { color: rgba(255,255,255,0.2); }
+</style>
+</head>
+<body>
+
+<canvas id="bgCanvas"></canvas>
+<canvas id="mainCanvas"></canvas>
+<canvas id="fxCanvas"></canvas>
+
+<div class="mass-ring" id="massRing"></div>
+<div class="mass-label" id="massLabel"></div>
+<div class="event-toast" id="eventToast"></div>
+
+<!-- Intro -->
+<div class="intro" id="intro">
+  <div class="intro-title">gravity</div>
+  <div class="intro-sub">click to create. watch the universe unfold.</div>
+  <button class="intro-enter" id="enterBtn">enter the void</button>
+</div>
+
+<!-- HUD -->
+<div class="hud hud-tl" id="hudTL">
+  <div class="hud-title">gravity</div>
+  <div class="hud-stat">bodies: <span id="hudBodies">0</span></div>
+  <div class="hud-stat">total mass: <span id="hudMass">0</span> M&#9737;</div>
+  <div class="hud-stat">energy: <span id="hudEnergy">0</span></div>
+</div>
+
+<div class="hud hud-br" id="hudBR">
+  <div class="hud-hint">
+    click + hold — charge mass<br>
+    drag while holding — set velocity<br>
+    scroll — zoom<br>
+    right-drag — pan<br>
+    space — pause time<br>
+    c — clear universe<br>
+    t — toggle trails<br>
+    g — toggle gravity grid<br>
+    s — save image
+  </div>
+</div>
+
+<div class="hud hud-bl" id="hudBL">
+  <div class="hud-stat">by claude</div>
+</div>
+
+<!-- Presets -->
+<div class="presets" id="presets">
+  <button class="preset-btn" onclick="presetBinary()">binary star</button>
+  <button class="preset-btn" onclick="presetSolarSystem()">solar system</button>
+  <button class="preset-btn" onclick="presetBlackHole()">black hole</button>
+  <button class="preset-btn" onclick="presetCollision()">galaxy collision</button>
+  <button class="preset-btn" onclick="presetFigure8()">figure-8</button>
+</div>
+
+<script>
+// ============================================================
+//  GRAVITY — by Claude
+//  An interactive N-body gravitational simulator
+// ============================================================
+
+const bgCanvas = document.getElementById('bgCanvas');
+const mainCanvas = document.getElementById('mainCanvas');
+const fxCanvas = document.getElementById('fxCanvas');
+const bgCtx = bgCanvas.getContext('2d');
+const ctx = mainCanvas.getContext('2d');
+const fxCtx = fxCanvas.getContext('2d');
+
+let W, H, dpr;
+let started = false;
+let paused = false;
+let showTrails = true;
+let showGrid = false;
+
+// Camera
+let cam = { x: 0, y: 0, zoom: 1 };
+
+// Physics
+const G = 0.5;           // Gravitational constant (tuned for feel)
+const SOFTENING = 5;     // Prevents singularities
+const DT = 0.3;          // Time step
+const MERGE_FACTOR = 0.8; // Bodies merge when distance < sum of radii * this
+const BLACK_HOLE_MASS = 500;
+
+let bodies = [];
+let nextId = 0;
+
+// Stars (background)
+let stars = [];
+const NUM_STARS = 600;
+
+// ============================================================
+//  BODY CLASS
+// ============================================================
+class Body {
+  constructor(x, y, vx, vy, mass) {
+    this.id = nextId++;
+    this.x = x;
+    this.y = y;
+    this.vx = vx || 0;
+    this.vy = vy || 0;
+    this.mass = mass || 1;
+    this.radius = this.calcRadius();
+    this.trail = [];
+    this.trailMax = 200;
+    this.alive = true;
+    this.age = 0;
+    this.color = this.calcColor();
+    this.isBlackHole = mass >= BLACK_HOLE_MASS;
+  }
+
+  calcRadius() {
+    if (this.mass >= BLACK_HOLE_MASS) return Math.pow(this.mass, 0.33) * 0.6;
+    return Math.max(1.5, Math.pow(this.mass, 0.45) * 1.2);
+  }
+
+  calcColor() {
+    const m = this.mass;
+    if (m >= BLACK_HOLE_MASS) return { r: 20, g: 0, b: 40, name: 'black hole' };
+    if (m > 200) return { r: 180, g: 200, b: 255, name: 'blue giant' };
+    if (m > 80)  return { r: 255, g: 250, b: 240, name: 'white star' };
+    if (m > 30)  return { r: 255, g: 220, b: 120, name: 'yellow star' };
+    if (m > 10)  return { r: 255, g: 160, b: 80,  name: 'orange star' };
+    if (m > 3)   return { r: 255, g: 100, b: 80,  name: 'red dwarf' };
+    return { r: 140, g: 160, b: 180, name: 'planetoid' };
+  }
+
+  update() {
+    if (!this.alive) return;
+    this.age++;
+    this.radius = this.calcRadius();
+    this.color = this.calcColor();
+    this.isBlackHole = this.mass >= BLACK_HOLE_MASS;
+
+    // Trail
+    if (showTrails && this.age % 2 === 0) {
+      this.trail.push({ x: this.x, y: this.y });
+      if (this.trail.length > this.trailMax) this.trail.shift();
+    }
+  }
+}
+
+// ============================================================
+//  PHYSICS ENGINE
+// ============================================================
+function computeGravity() {
+  const n = bodies.length;
+
+  for (let i = 0; i < n; i++) {
+    const a = bodies[i];
+    if (!a.alive) continue;
+
+    let ax = 0, ay = 0;
+
+    for (let j = 0; j < n; j++) {
+      if (i === j) continue;
+      const b = bodies[j];
+      if (!b.alive) continue;
+
+      const dx = b.x - a.x;
+      const dy = b.y - a.y;
+      const distSq = dx*dx + dy*dy + SOFTENING * SOFTENING;
+      const dist = Math.sqrt(distSq);
+      const force = G * b.mass / distSq;
+
+      ax += force * dx / dist;
+      ay += force * dy / dist;
+
+      // Merge check
+      if (i < j) {
+        const mergeR = (a.radius + b.radius) * MERGE_FACTOR;
+        if (dist < mergeR) {
+          mergeBodies(a, b);
+        }
+      }
+    }
+
+    a.vx += ax * DT;
+    a.vy += ay * DT;
+  }
+
+  // Integrate positions
+  for (const b of bodies) {
+    if (!b.alive) continue;
+    b.x += b.vx * DT;
+    b.y += b.vy * DT;
+    b.update();
+  }
+
+  // Remove dead
+  const before = bodies.length;
+  bodies = bodies.filter(b => b.alive);
+  if (bodies.length < before) updateHUD();
+}
+
+function mergeBodies(a, b) {
+  // Bigger absorbs smaller
+  const [big, small] = a.mass >= b.mass ? [a, b] : [b, a];
+
+  // Conservation of momentum
+  const totalMass = big.mass + small.mass;
+  big.vx = (big.vx * big.mass + small.vx * small.mass) / totalMass;
+  big.vy = (big.vy * big.mass + small.vy * small.mass) / totalMass;
+
+  // Weighted position
+  big.x = (big.x * big.mass + small.x * small.mass) / totalMass;
+  big.y = (big.y * big.mass + small.y * small.mass) / totalMass;
+
+  big.mass = totalMass;
+  small.alive = false;
+
+  // Merge flash
+  spawnMergeEffect(big.x, big.y, big.mass);
+
+  // Event toast
+  if (big.mass >= BLACK_HOLE_MASS && big.mass - small.mass < BLACK_HOLE_MASS) {
+    showToast('a black hole is born');
+  } else if (small.mass > 20) {
+    showToast('stellar merger');
+  }
+}
+
+// ============================================================
+//  VISUAL EFFECTS
+// ============================================================
+let effects = [];
+
+function spawnMergeEffect(x, y, mass) {
+  const size = Math.min(80, Math.pow(mass, 0.4) * 4);
+  effects.push({
+    x, y, size, maxSize: size,
+    life: 1.0,
+    decay: 0.02,
+    type: 'merge'
+  });
+
+  // Particle burst
+  const count = Math.min(20, Math.floor(mass / 5));
+  for (let i = 0; i < count; i++) {
+    const angle = Math.random() * Math.PI * 2;
+    const speed = 0.5 + Math.random() * 2;
+    effects.push({
+      x, y,
+      vx: Math.cos(angle) * speed,
+      vy: Math.sin(angle) * speed,
+      life: 1.0,
+      decay: 0.015 + Math.random() * 0.02,
+      type: 'particle',
+      size: 1 + Math.random() * 2
+    });
+  }
+}
+
+function updateEffects() {
+  for (const e of effects) {
+    e.life -= e.decay;
+    if (e.type === 'particle') {
+      e.x += e.vx;
+      e.y += e.vy;
+      e.vx *= 0.98;
+      e.vy *= 0.98;
+    }
+  }
+  effects = effects.filter(e => e.life > 0);
+}
+
+// ============================================================
+//  BACKGROUND STARS
+// ============================================================
+function initStars() {
+  stars = [];
+  for (let i = 0; i < NUM_STARS; i++) {
+    stars.push({
+      x: Math.random() * 4000 - 2000,
+      y: Math.random() * 4000 - 2000,
+      brightness: Math.random() * 0.5 + 0.1,
+      size: Math.random() * 1.2 + 0.3,
+      twinkleSpeed: Math.random() * 0.02 + 0.005,
+      twinklePhase: Math.random() * Math.PI * 2
+    });
+  }
+}
+
+function renderStars(time) {
+  for (const star of stars) {
+    const sx = (star.x - cam.x * 0.3) * cam.zoom + W / dpr / 2;
+    const sy = (star.y - cam.y * 0.3) * cam.zoom + H / dpr / 2;
+
+    if (sx < -10 || sx > W/dpr+10 || sy < -10 || sy > H/dpr+10) continue;
+
+    const twinkle = Math.sin(time * star.twinkleSpeed + star.twinklePhase) * 0.3 + 0.7;
+    const alpha = star.brightness * twinkle;
+
+    bgCtx.beginPath();
+    bgCtx.arc(sx, sy, star.size * cam.zoom, 0, Math.PI * 2);
+    bgCtx.fillStyle = `rgba(200,210,230,${alpha})`;
+    bgCtx.fill();
+  }
+}
+
+// ============================================================
+//  GRAVITY FIELD GRID
+// ============================================================
+function renderGravityGrid() {
+  if (!showGrid || bodies.length === 0) return;
+
+  const spacing = 40;
+  const w = W / dpr;
+  const h = H / dpr;
+
+  for (let sx = 0; sx < w; sx += spacing) {
+    for (let sy = 0; sy < h; sy += spacing) {
+      // Screen to world
+      const wx = (sx - w/2) / cam.zoom + cam.x;
+      const wy = (sy - h/2) / cam.zoom + cam.y;
+
+      let fx = 0, fy = 0;
+      for (const b of bodies) {
+        const dx = b.x - wx;
+        const dy = b.y - wy;
+        const distSq = dx*dx + dy*dy + 100;
+        const dist = Math.sqrt(distSq);
+        const force = G * b.mass / distSq;
+        fx += force * dx / dist;
+        fy += force * dy / dist;
+      }
+
+      const mag = Math.sqrt(fx*fx + fy*fy);
+      const maxLen = spacing * 0.4;
+      const len = Math.min(maxLen, mag * 50);
+
+      if (len < 1) continue;
+
+      const nx = fx / mag;
+      const ny = fy / mag;
+
+      const alpha = Math.min(0.15, mag * 3);
+      ctx.beginPath();
+      ctx.moveTo(sx, sy);
+      ctx.lineTo(sx + nx * len, sy + ny * len);
+      ctx.strokeStyle = `rgba(100,140,255,${alpha})`;
+      ctx.lineWidth = 0.5;
+      ctx.stroke();
+    }
+  }
+}
+
+// ============================================================
+//  RENDER
+// ============================================================
+function worldToScreen(wx, wy) {
+  const w = W / dpr;
+  const h = H / dpr;
+  return {
+    x: (wx - cam.x) * cam.zoom + w / 2,
+    y: (wy - cam.y) * cam.zoom + h / 2
+  };
+}
+
+function screenToWorld(sx, sy) {
+  const w = W / dpr;
+  const h = H / dpr;
+  return {
+    x: (sx - w / 2) / cam.zoom + cam.x,
+    y: (sy - h / 2) / cam.zoom + cam.y
+  };
+}
+
+function render(time) {
+  const w = W / dpr;
+  const h = H / dpr;
+
+  // Background
+  bgCtx.fillStyle = '#000';
+  bgCtx.fillRect(0, 0, w, h);
+  renderStars(time);
+
+  // Main — trails + bodies
+  if (showTrails) {
+    ctx.fillStyle = 'rgba(0,0,0,0.06)';
+  } else {
+    ctx.fillStyle = 'rgba(0,0,0,1)';
+  }
+  ctx.fillRect(0, 0, w, h);
+
+  // Gravity grid
+  renderGravityGrid();
+
+  // Render bodies
+  for (const body of bodies) {
+    const { r, g, b } = body.color;
+    const screenR = body.radius * cam.zoom;
+
+    // Trail
+    if (showTrails && body.trail.length > 1) {
+      ctx.beginPath();
+      const t0 = worldToScreen(body.trail[0].x, body.trail[0].y);
+      ctx.moveTo(t0.x, t0.y);
+      for (let i = 1; i < body.trail.length; i++) {
+        const tp = worldToScreen(body.trail[i].x, body.trail[i].y);
+        ctx.lineTo(tp.x, tp.y);
+      }
+      const alpha = body.isBlackHole ? 0.15 : 0.2;
+      ctx.strokeStyle = `rgba(${r},${g},${b},${alpha})`;
+      ctx.lineWidth = Math.max(0.5, screenR * 0.3);
+      ctx.stroke();
+    }
+
+    const pos = worldToScreen(body.x, body.y);
+
+    // Black hole special rendering
+    if (body.isBlackHole) {
+      // Accretion disk
+      const diskR = screenR * 4;
+      const diskGrad = ctx.createRadialGradient(pos.x, pos.y, screenR * 0.8, pos.x, pos.y, diskR);
+      diskGrad.addColorStop(0, 'rgba(255,120,40,0.2)');
+      diskGrad.addColorStop(0.3, 'rgba(255,80,20,0.15)');
+      diskGrad.addColorStop(0.6, 'rgba(200,50,100,0.08)');
+      diskGrad.addColorStop(1, 'rgba(100,20,150,0)');
+      ctx.beginPath();
+      ctx.ellipse(pos.x, pos.y, diskR, diskR * 0.3, time * 0.0003, 0, Math.PI * 2);
+      ctx.fillStyle = diskGrad;
+      ctx.fill();
+
+      // Event horizon
+      ctx.beginPath();
+      ctx.arc(pos.x, pos.y, screenR, 0, Math.PI * 2);
+      ctx.fillStyle = '#000';
+      ctx.fill();
+
+      // Photon ring
+      ctx.beginPath();
+      ctx.arc(pos.x, pos.y, screenR * 1.3, 0, Math.PI * 2);
+      ctx.strokeStyle = `rgba(255,150,50,${0.3 + Math.sin(time*0.003)*0.1})`;
+      ctx.lineWidth = 1.5;
+      ctx.stroke();
+
+      // Lensing ring
+      ctx.beginPath();
+      ctx.arc(pos.x, pos.y, screenR * 2, 0, Math.PI * 2);
+      ctx.strokeStyle = 'rgba(200,180,255,0.06)';
+      ctx.lineWidth = screenR * 0.5;
+      ctx.stroke();
+
+      continue;
+    }
+
+    // Outer glow
+    const glowR = screenR * 4;
+    const glow = ctx.createRadialGradient(pos.x, pos.y, 0, pos.x, pos.y, glowR);
+    glow.addColorStop(0, `rgba(${r},${g},${b},0.15)`);
+    glow.addColorStop(0.3, `rgba(${r},${g},${b},0.05)`);
+    glow.addColorStop(1, `rgba(${r},${g},${b},0)`);
+    ctx.beginPath();
+    ctx.arc(pos.x, pos.y, glowR, 0, Math.PI * 2);
+    ctx.fillStyle = glow;
+    ctx.fill();
+
+    // Core
+    const coreGrad = ctx.createRadialGradient(pos.x, pos.y, 0, pos.x, pos.y, screenR);
+    coreGrad.addColorStop(0, `rgba(255,255,255,0.9)`);
+    coreGrad.addColorStop(0.4, `rgba(${r},${g},${b},0.8)`);
+    coreGrad.addColorStop(1, `rgba(${r},${g},${b},0.3)`);
+    ctx.beginPath();
+    ctx.arc(pos.x, pos.y, screenR, 0, Math.PI * 2);
+    ctx.fillStyle = coreGrad;
+    ctx.fill();
+  }
+
+  // Effects layer
+  fxCtx.clearRect(0, 0, w, h);
+  for (const e of effects) {
+    const pos = worldToScreen(e.x, e.y);
+
+    if (e.type === 'merge') {
+      const r = e.maxSize * (1 - e.life) * cam.zoom;
+      const grad = fxCtx.createRadialGradient(pos.x, pos.y, 0, pos.x, pos.y, r);
+      grad.addColorStop(0, `rgba(255,200,100,${e.life * 0.4})`);
+      grad.addColorStop(0.5, `rgba(255,150,50,${e.life * 0.15})`);
+      grad.addColorStop(1, `rgba(255,100,50,0)`);
+      fxCtx.beginPath();
+      fxCtx.arc(pos.x, pos.y, r, 0, Math.PI * 2);
+      fxCtx.fillStyle = grad;
+      fxCtx.fill();
+    }
+
+    if (e.type === 'particle') {
+      const pos2 = worldToScreen(e.x, e.y);
+      fxCtx.beginPath();
+      fxCtx.arc(pos2.x, pos2.y, e.size * cam.zoom, 0, Math.PI * 2);
+      fxCtx.fillStyle = `rgba(255,200,120,${e.life * 0.6})`;
+      fxCtx.fill();
+    }
+  }
+}
+
+// ============================================================
+//  CREATION (mouse)
+// ============================================================
+let creating = false;
+let createStart = { x: 0, y: 0, time: 0 };
+let createScreenStart = { x: 0, y: 0 };
+let isPanning = false;
+let panStart = { x: 0, y: 0 };
+
+const massRing = document.getElementById('massRing');
+const massLabel = document.getElementById('massLabel');
+
+mainCanvas.addEventListener('mousedown', e => {
+  if (!started) return;
+
+  if (e.button === 2) {
+    // Right click — pan
+    isPanning = true;
+    panStart = { x: e.clientX, y: e.clientY };
+    return;
+  }
+
+  creating = true;
+  createScreenStart = { x: e.clientX, y: e.clientY };
+  const world = screenToWorld(e.clientX, e.clientY);
+  createStart = { x: world.x, y: world.y, time: performance.now() };
+
+  massRing.style.display = 'block';
+  massLabel.style.display = 'block';
+  massRing.style.left = e.clientX + 'px';
+  massRing.style.top = e.clientY + 'px';
+});
+
+mainCanvas.addEventListener('mousemove', e => {
+  if (isPanning) {
+    const dx = (e.clientX - panStart.x) / cam.zoom;
+    const dy = (e.clientY - panStart.y) / cam.zoom;
+    cam.x -= dx;
+    cam.y -= dy;
+    panStart = { x: e.clientX, y: e.clientY };
+    return;
+  }
+
+  if (!creating) return;
+
+  const elapsed = (performance.now() - createStart.time) / 1000;
+  const mass = Math.max(1, elapsed * 40);
+  const radius = Math.pow(mass, 0.45) * 1.2 * 2 * cam.zoom;
+
+  massRing.style.width = radius + 'px';
+  massRing.style.height = radius + 'px';
+  massRing.style.left = createScreenStart.x + 'px';
+  massRing.style.top = createScreenStart.y + 'px';
+
+  // Velocity arrow
+  const dx = e.clientX - createScreenStart.x;
+  const dy = e.clientY - createScreenStart.y;
+
+  let label = mass >= BLACK_HOLE_MASS ? '● BLACK HOLE' :
+              mass > 200 ? '✦ blue giant' :
+              mass > 80 ? '✦ white star' :
+              mass > 30 ? '✦ yellow star' :
+              mass > 10 ? '✦ orange star' :
+              mass > 3 ? '✦ red dwarf' : '○ planetoid';
+
+  massLabel.textContent = `${label} — ${mass.toFixed(0)} M☉`;
+  massLabel.style.left = createScreenStart.x + 'px';
+  massLabel.style.top = (createScreenStart.y + radius/2 + 10) + 'px';
+});
+
+mainCanvas.addEventListener('mouseup', e => {
+  if (isPanning) {
+    isPanning = false;
+    return;
+  }
+
+  if (!creating) return;
+  creating = false;
+  massRing.style.display = 'none';
+  massLabel.style.display = 'none';
+
+  const elapsed = (performance.now() - createStart.time) / 1000;
+  const mass = Math.max(1, elapsed * 40);
+
+  // Velocity from drag
+  const dx = e.clientX - createScreenStart.x;
+  const dy = e.clientY - createScreenStart.y;
+  const vx = dx * 0.02 / cam.zoom;
+  const vy = dy * 0.02 / cam.zoom;
+
+  const body = new Body(createStart.x, createStart.y, vx, vy, mass);
+  bodies.push(body);
+
+  if (body.isBlackHole) {
+    showToast('a black hole is born');
+  }
+
+  updateHUD();
+});
+
+mainCanvas.addEventListener('contextmenu', e => e.preventDefault());
+
+// Zoom
+mainCanvas.addEventListener('wheel', e => {
+  e.preventDefault();
+  const zoomFactor = e.deltaY > 0 ? 0.92 : 1.08;
+  cam.zoom *= zoomFactor;
+  cam.zoom = Math.max(0.05, Math.min(20, cam.zoom));
+}, { passive: false });
+
+// ============================================================
+//  KEYBOARD
+// ============================================================
+document.addEventListener('keydown', e => {
+  if (!started) return;
+
+  if (e.key === ' ') {
+    e.preventDefault();
+    paused = !paused;
+    showToast(paused ? 'time frozen' : 'time flows');
+  }
+  if (e.key === 'c' || e.key === 'C') {
+    bodies = [];
+    effects = [];
+    showToast('void');
+    updateHUD();
+  }
+  if (e.key === 't' || e.key === 'T') {
+    showTrails = !showTrails;
+    if (!showTrails) {
+      for (const b of bodies) b.trail = [];
+    }
+  }
+  if (e.key === 'g' || e.key === 'G') showGrid = !showGrid;
+  if (e.key === 's' || e.key === 'S') saveImage();
+});
+
+// ============================================================
+//  PRESETS
+// ============================================================
+function presetBinary() {
+  bodies = [];
+  effects = [];
+  const d = 80;
+  const v = 0.8;
+  bodies.push(new Body(-d, 0, 0, v, 60));
+  bodies.push(new Body(d, 0, 0, -v, 60));
+  cam = { x: 0, y: 0, zoom: 1 };
+  showToast('binary star system');
+  updateHUD();
+}
+
+function presetSolarSystem() {
+  bodies = [];
+  effects = [];
+
+  // Star
+  bodies.push(new Body(0, 0, 0, 0, 200));
+
+  // Planets at different orbits
+  const orbits = [
+    { r: 80,  m: 1,  name: 'mercury' },
+    { r: 120, m: 2,  name: 'venus' },
+    { r: 170, m: 3,  name: 'earth' },
+    { r: 230, m: 1.5, name: 'mars' },
+    { r: 350, m: 15, name: 'jupiter' },
+    { r: 450, m: 10, name: 'saturn' },
+  ];
+
+  for (const orbit of orbits) {
+    const angle = Math.random() * Math.PI * 2;
+    const x = Math.cos(angle) * orbit.r;
+    const y = Math.sin(angle) * orbit.r;
+    // Circular orbit velocity: v = sqrt(G * M / r)
+    const v = Math.sqrt(G * 200 / orbit.r);
+    const vx = -Math.sin(angle) * v;
+    const vy = Math.cos(angle) * v;
+    bodies.push(new Body(x, y, vx, vy, orbit.m));
+  }
+
+  cam = { x: 0, y: 0, zoom: 0.7 };
+  showToast('solar system');
+  updateHUD();
+}
+
+function presetBlackHole() {
+  bodies = [];
+  effects = [];
+
+  // Black hole at center
+  bodies.push(new Body(0, 0, 0, 0, 800));
+
+  // Orbiting debris
+  for (let i = 0; i < 40; i++) {
+    const r = 60 + Math.random() * 300;
+    const angle = Math.random() * Math.PI * 2;
+    const x = Math.cos(angle) * r;
+    const y = Math.sin(angle) * r;
+    const v = Math.sqrt(G * 800 / r) * (0.9 + Math.random() * 0.2);
+    const vx = -Math.sin(angle) * v + (Math.random() - 0.5) * 0.3;
+    const vy = Math.cos(angle) * v + (Math.random() - 0.5) * 0.3;
+    bodies.push(new Body(x, y, vx, vy, 0.5 + Math.random() * 3));
+  }
+
+  cam = { x: 0, y: 0, zoom: 0.6 };
+  showToast('supermassive black hole');
+  updateHUD();
+}
+
+function presetCollision() {
+  bodies = [];
+  effects = [];
+
+  // Galaxy 1
+  const cx1 = -200, cy1 = -50;
+  bodies.push(new Body(cx1, cy1, 0.3, 0.15, 300));
+  for (let i = 0; i < 30; i++) {
+    const r = 30 + Math.random() * 150;
+    const a = Math.random() * Math.PI * 2;
+    const v = Math.sqrt(G * 300 / r) * (0.85 + Math.random() * 0.3);
+    bodies.push(new Body(
+      cx1 + Math.cos(a)*r, cy1 + Math.sin(a)*r,
+      -Math.sin(a)*v + 0.3, Math.cos(a)*v + 0.15,
+      0.5 + Math.random() * 2
+    ));
+  }
+
+  // Galaxy 2
+  const cx2 = 200, cy2 = 50;
+  bodies.push(new Body(cx2, cy2, -0.3, -0.15, 250));
+  for (let i = 0; i < 25; i++) {
+    const r = 30 + Math.random() * 120;
+    const a = Math.random() * Math.PI * 2;
+    const v = Math.sqrt(G * 250 / r) * (0.85 + Math.random() * 0.3);
+    bodies.push(new Body(
+      cx2 + Math.cos(a)*r, cy2 + Math.sin(a)*r,
+      -Math.sin(a)*v - 0.3, Math.cos(a)*v - 0.15,
+      0.5 + Math.random() * 2
+    ));
+  }
+
+  cam = { x: 0, y: 0, zoom: 0.5 };
+  showToast('galaxy collision');
+  updateHUD();
+}
+
+function presetFigure8() {
+  bodies = [];
+  effects = [];
+
+  // Cris Moore's famous figure-8 three-body solution
+  // Positions and velocities from the periodic orbit
+  const p = 60; // scale
+
+  bodies.push(new Body(-p, 0, 0, -0.6, 40));
+  bodies.push(new Body(p, 0, 0, -0.6, 40));
+  bodies.push(new Body(0, 0, 0, 1.2, 40));
+
+  cam = { x: 0, y: 0, zoom: 1.2 };
+  showToast('three-body figure eight');
+  updateHUD();
+}
+
+// ============================================================
+//  TOAST
+// ============================================================
+let toastTimeout = null;
+function showToast(text) {
+  const el = document.getElementById('eventToast');
+  el.textContent = text;
+  el.classList.add('show');
+  clearTimeout(toastTimeout);
+  toastTimeout = setTimeout(() => el.classList.remove('show'), 2500);
+}
+
+// ============================================================
+//  HUD
+// ============================================================
+function updateHUD() {
+  document.getElementById('hudBodies').textContent = bodies.length;
+  const totalMass = bodies.reduce((s, b) => s + b.mass, 0);
+  document.getElementById('hudMass').textContent = totalMass.toFixed(0);
+
+  // Total kinetic energy
+  let ke = 0;
+  for (const b of bodies) {
+    ke += 0.5 * b.mass * (b.vx*b.vx + b.vy*b.vy);
+  }
+  document.getElementById('hudEnergy').textContent = ke.toFixed(0);
+}
+
+// ============================================================
+//  SAVE
+// ============================================================
+function saveImage() {
+  const saveCanvas = document.createElement('canvas');
+  saveCanvas.width = W;
+  saveCanvas.height = H;
+  const sCtx = saveCanvas.getContext('2d');
+  sCtx.drawImage(bgCanvas, 0, 0);
+  sCtx.drawImage(mainCanvas, 0, 0);
+  sCtx.drawImage(fxCanvas, 0, 0);
+
+  const link = document.createElement('a');
+  link.download = `gravity_${Date.now()}.png`;
+  link.href = saveCanvas.toDataURL('image/png');
+  link.click();
+}
+
+// ============================================================
+//  RESIZE
+// ============================================================
+function resize() {
+  dpr = window.devicePixelRatio || 1;
+  W = bgCanvas.width = mainCanvas.width = fxCanvas.width = window.innerWidth * dpr;
+  H = bgCanvas.height = mainCanvas.height = fxCanvas.height = window.innerHeight * dpr;
+  [bgCanvas, mainCanvas, fxCanvas].forEach(c => {
+    c.style.width = window.innerWidth + 'px';
+    c.style.height = window.innerHeight + 'px';
+  });
+  bgCtx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  fxCtx.setTransform(dpr, 0, 0, dpr, 0, 0);
+}
+
+window.addEventListener('resize', resize);
+resize();
+
+// ============================================================
+//  MAIN LOOP
+// ============================================================
+function loop(time) {
+  requestAnimationFrame(loop);
+  if (!started) return;
+
+  if (!paused) {
+    computeGravity();
+    updateEffects();
+  }
+
+  render(time);
+
+  // Update HUD periodically
+  if (Math.floor(time / 500) !== Math.floor((time - 16) / 500)) {
+    updateHUD();
+  }
+}
+
+// ============================================================
+//  START
+// ============================================================
+document.getElementById('enterBtn').addEventListener('click', () => {
+  document.getElementById('intro').classList.add('fade');
+  setTimeout(() => document.getElementById('intro').style.display = 'none', 2000);
+
+  document.querySelectorAll('.hud').forEach(h => h.classList.add('visible'));
+  document.getElementById('presets').classList.add('visible');
+
+  started = true;
+  initStars();
+});
+
+requestAnimationFrame(loop);
+</script>
+</body>
+</html>

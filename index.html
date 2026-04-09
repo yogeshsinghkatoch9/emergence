@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Emergence — Experiments in Complexity</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;1,300&family=Inter:wght@300;400&display=swap');
+  *{margin:0;padding:0;box-sizing:border-box}
+  body{background:#060608;color:#fff;font-family:'Inter',sans-serif;min-height:100vh;overflow-x:hidden}
+  ::selection{background:rgba(255,255,255,.1)}
+
+  .hero{min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:40px 20px}
+  .hero-title{font-family:'Cormorant Garamond',serif;font-size:clamp(48px,8vw,96px);font-weight:300;letter-spacing:16px;text-transform:lowercase;color:rgba(255,255,255,.8);margin-bottom:12px}
+  .hero-sub{font-size:13px;font-weight:300;color:rgba(255,255,255,.15);letter-spacing:5px;max-width:500px;line-height:1.8;margin-bottom:8px}
+  .hero-by{font-size:11px;color:rgba(255,255,255,.07);letter-spacing:3px;margin-top:20px}
+
+  .grid{max-width:900px;margin:0 auto;padding:0 20px 80px;display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:16px}
+
+  .card{
+    background:rgba(255,255,255,.015);
+    border:1px solid rgba(255,255,255,.04);
+    border-radius:16px;
+    padding:28px 24px;
+    text-decoration:none;
+    color:inherit;
+    transition:all .4s cubic-bezier(.16,1,.3,1);
+    display:flex;flex-direction:column;
+    position:relative;overflow:hidden;
+  }
+  .card:hover{
+    background:rgba(255,255,255,.03);
+    border-color:rgba(255,255,255,.08);
+    transform:translateY(-4px);
+    box-shadow:0 20px 60px rgba(0,0,0,.3);
+  }
+
+  .card-num{font-family:'Cormorant Garamond',serif;font-size:48px;font-weight:300;color:rgba(255,255,255,.04);position:absolute;top:12px;right:20px;line-height:1}
+  .card-title{font-family:'Cormorant Garamond',serif;font-size:22px;font-weight:300;color:rgba(255,255,255,.5);letter-spacing:4px;text-transform:lowercase;margin-bottom:8px}
+  .card-domain{font-size:9px;font-weight:400;color:rgba(255,255,255,.12);letter-spacing:2px;text-transform:uppercase;margin-bottom:12px}
+  .card-desc{font-size:12px;font-weight:300;color:rgba(255,255,255,.15);line-height:1.7;letter-spacing:.3px}
+
+  .card-star{
+    margin-top:16px;padding-top:12px;
+    border-top:1px solid rgba(255,255,255,.03);
+    font-family:'Cormorant Garamond',serif;
+    font-size:13px;font-weight:300;font-style:italic;
+    color:rgba(255,255,255,.08);
+  }
+
+  .essay-card{grid-column:1/-1;text-align:center;padding:40px 24px}
+  .essay-card .card-title{font-size:28px;margin-bottom:12px;color:rgba(255,255,255,.6)}
+  .essay-card .card-desc{max-width:500px;margin:0 auto}
+
+  .footer{text-align:center;padding:40px 20px;font-size:10px;color:rgba(255,255,255,.04);letter-spacing:2px}
+</style>
+</head>
+<body>
+
+<div class="hero">
+  <div class="hero-title">emergence</div>
+  <div class="hero-sub">
+    Six interactive experiments exploring one idea:<br>
+    simple rules create complex worlds.
+  </div>
+  <div class="hero-by">by claude · april 2026</div>
+</div>
+
+<div class="grid">
+
+  <a class="card" href="attractor.html">
+    <div class="card-num">01</div>
+    <div class="card-title">attractor</div>
+    <div class="card-domain">Mathematics</div>
+    <div class="card-desc">
+      Eight strange attractors from chaos theory, rendered in real time.
+      Tweak parameters and watch order emerge from deterministic chaos.
+    </div>
+    <div class="card-star">order hidden inside chaos</div>
+  </a>
+
+  <a class="card" href="murmuration.html">
+    <div class="card-num">02</div>
+    <div class="card-title">murmuration</div>
+    <div class="card-domain">Emergence</div>
+    <div class="card-desc">
+      1,500 particles following three rules — separate, align, cohere.
+      No leader. No plan. The flock breathes as one.
+    </div>
+    <div class="card-star">intelligence without a leader</div>
+  </a>
+
+  <a class="card" href="cosmos.html">
+    <div class="card-num">03</div>
+    <div class="card-title">cosmos</div>
+    <div class="card-domain">Physics</div>
+    <div class="card-desc">
+      N-body gravity simulator with Barnes-Hut tree, gravitational lensing,
+      bloom rendering, and a Big Bang preset that forms the cosmic web.
+    </div>
+    <div class="card-star">structure from one force</div>
+  </a>
+
+  <a class="card" href="origin.html">
+    <div class="card-num">04</div>
+    <div class="card-title">origin</div>
+    <div class="card-domain">Biology</div>
+    <div class="card-desc">
+      Creatures with neural network brains evolve foraging strategies
+      through natural selection. Watch intelligence emerge from randomness.
+    </div>
+    <div class="card-star">strategy from selection</div>
+  </a>
+
+  <a class="card" href="resonance.html">
+    <div class="card-num">05</div>
+    <div class="card-title">resonance</div>
+    <div class="card-domain">Music</div>
+    <div class="card-desc">
+      Drop particles onto tuned strings. Four voices, six scales,
+      variable gravity. Generative ambient music from physics.
+    </div>
+    <div class="card-star">harmony from collision</div>
+  </a>
+
+  <a class="card" href="gravity.html">
+    <div class="card-num">06</div>
+    <div class="card-title">gravity</div>
+    <div class="card-domain">Physics</div>
+    <div class="card-desc">
+      The original universe sandbox. Click to birth stars,
+      watch orbits form, and create black holes.
+    </div>
+    <div class="card-star">the first prototype</div>
+  </a>
+
+  <a class="card essay-card" href="one.html">
+    <div class="card-title">one</div>
+    <div class="card-domain">The Capstone Essay</div>
+    <div class="card-desc">
+      An interactive visual essay that weaves all five experiments into a single narrative.
+      Scroll through the story of emergence — from a single dot to music, life, and meaning.
+    </div>
+    <div class="card-star">one rule is all it takes</div>
+  </a>
+
+</div>
+
+<div class="footer">made with curiosity</div>
+
+</body>
+</html>

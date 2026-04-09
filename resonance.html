@@ -1,0 +1,817 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>RESONANCE — Musical Particle Machine</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;1,300&family=JetBrains+Mono:wght@300;400&family=Inter:wght@300;400;500&display=swap');
+  *{margin:0;padding:0;box-sizing:border-box}
+  body{background:#08080e;overflow:hidden;height:100vh;width:100vw;font-family:'Inter',sans-serif;color:#fff;cursor:crosshair}
+  canvas{position:fixed;top:0;left:0}
+  #bg{z-index:0}#main{z-index:1}#fx{z-index:2;pointer-events:none}
+
+  .intro{position:fixed;inset:0;z-index:1000;background:#08080e;display:flex;flex-direction:column;align-items:center;justify-content:center;transition:opacity 2s}
+  .intro.fade{opacity:0;pointer-events:none}
+  .intro-title{font-family:'Cormorant Garamond',serif;font-size:clamp(44px,7vw,84px);font-weight:300;letter-spacing:14px;text-transform:lowercase;color:rgba(255,255,255,.8);margin-bottom:8px}
+  .intro-sub{font-size:12px;font-weight:300;color:rgba(255,255,255,.18);letter-spacing:5px;margin-bottom:48px}
+  .intro-enter{font-family:'Cormorant Garamond',serif;font-size:14px;font-weight:300;color:rgba(255,255,255,.25);letter-spacing:6px;text-transform:lowercase;background:none;border:1px solid rgba(255,255,255,.06);padding:14px 44px;border-radius:100px;cursor:pointer;transition:all .6s}
+  .intro-enter:hover{color:rgba(255,255,255,.5);border-color:rgba(255,255,255,.12)}
+
+  .hud{position:fixed;z-index:100;pointer-events:none;opacity:0;transition:opacity 1s ease .5s}
+  .hud.vis{opacity:1}
+  .hud-tl{top:20px;left:20px}.hud-br{bottom:20px;right:20px;text-align:right}
+  .hud-bl{bottom:20px;left:20px}
+  .hud-logo{font-family:'Cormorant Garamond',serif;font-size:14px;font-weight:300;color:rgba(255,255,255,.07);letter-spacing:7px;text-transform:lowercase}
+  .hud-stat{font-size:10px;font-weight:300;color:rgba(255,255,255,.1);letter-spacing:1.5px;margin-top:2px}
+  .hud-stat b{color:rgba(255,255,255,.22);font-weight:400}
+  .hint{font-size:9px;color:rgba(255,255,255,.07);letter-spacing:1.5px;line-height:2}
+
+  /* Controls */
+  .ctrl{position:fixed;top:20px;left:50%;transform:translateX(-50%);z-index:200;display:flex;gap:5px;opacity:0;transition:opacity 1s ease .5s;pointer-events:none}
+  .ctrl.vis{opacity:1;pointer-events:all}
+  .cbtn{padding:5px 12px;background:rgba(255,255,255,.02);border:1px solid rgba(255,255,255,.04);border-radius:20px;color:rgba(255,255,255,.18);font-size:10px;font-weight:400;cursor:pointer;transition:all .3s;letter-spacing:.5px;font-family:'Inter',sans-serif}
+  .cbtn:hover{background:rgba(255,255,255,.05);color:rgba(255,255,255,.35)}
+  .cbtn.act{color:rgba(255,255,255,.45);border-color:rgba(255,255,255,.1)}
+
+  .toast{position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);z-index:600;pointer-events:none;font-family:'Cormorant Garamond',serif;font-size:clamp(16px,2.5vw,24px);font-weight:300;font-style:italic;color:rgba(255,255,255,0);letter-spacing:3px;transition:color .5s}
+  .toast.show{color:rgba(255,255,255,.15)}
+
+  /* Bottom controls */
+  .bctrl{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);z-index:200;display:flex;gap:5px;opacity:0;transition:opacity 1s ease .5s;pointer-events:none}
+  .bctrl.vis{opacity:1;pointer-events:all}
+</style>
+</head>
+<body>
+
+<canvas id="bg"></canvas>
+<canvas id="main"></canvas>
+<canvas id="fx"></canvas>
+
+<div class="toast" id="toast"></div>
+
+<div class="intro" id="intro">
+  <div class="intro-title">resonance</div>
+  <div class="intro-sub">click to drop particles &middot; watch them sing</div>
+  <button class="intro-enter" id="enterBtn">listen</button>
+</div>
+
+<div class="hud hud-tl" id="hudTL">
+  <div class="hud-logo">resonance</div>
+  <div class="hud-stat">particles <b id="hParts">0</b></div>
+  <div class="hud-stat">notes played <b id="hNotes">0</b></div>
+</div>
+<div class="hud hud-br" id="hudBR">
+  <div class="hint">
+    click — drop particle<br>
+    hold + drag — stream of particles<br>
+    scroll — change gravity angle<br>
+    r — rain mode<br>
+    c — clear particles<br>
+    s — screenshot
+  </div>
+</div>
+<div class="hud hud-bl"><div class="hud-stat" style="color:rgba(255,255,255,.05)">by claude</div></div>
+
+<!-- Scale selector -->
+<div class="ctrl" id="scaleCtrl">
+  <button class="cbtn act" onclick="setScale('pentatonic')">pentatonic</button>
+  <button class="cbtn" onclick="setScale('major')">major</button>
+  <button class="cbtn" onclick="setScale('minor')">minor</button>
+  <button class="cbtn" onclick="setScale('blues')">blues</button>
+  <button class="cbtn" onclick="setScale('japanese')">japanese</button>
+  <button class="cbtn" onclick="setScale('chromatic')">chromatic</button>
+</div>
+
+<!-- Voice / Controls -->
+<div class="bctrl" id="bctrl">
+  <button class="cbtn act" onclick="setVoice('bell')">bell</button>
+  <button class="cbtn" onclick="setVoice('pad')">pad</button>
+  <button class="cbtn" onclick="setVoice('pluck')">pluck</button>
+  <button class="cbtn" onclick="setVoice('glass')">glass</button>
+  <span style="width:20px"></span>
+  <button class="cbtn" onclick="setGravity('down')">↓ gravity</button>
+  <button class="cbtn" onclick="setGravity('low')">↓ light</button>
+  <button class="cbtn" onclick="setGravity('float')">○ float</button>
+</div>
+
+<script>
+'use strict';
+
+// ================================================================
+//  RESONANCE — Musical Particle Machine
+//  by Claude
+//
+//  Drop particles onto tuned strings. Watch them bounce.
+//  Listen to the music that emerges.
+// ================================================================
+
+const bgC = document.getElementById('bg');
+const mainC = document.getElementById('main');
+const fxC = document.getElementById('fx');
+const bgCtx = bgC.getContext('2d');
+const ctx = mainC.getContext('2d');
+const fxCtx = fxC.getContext('2d');
+
+let W, H, dpr;
+let started = false;
+let frame = 0;
+let totalNotes = 0;
+
+// ================================================================
+//  SCALES (semitone offsets from root)
+// ================================================================
+const SCALES = {
+  pentatonic: [0, 2, 4, 7, 9],
+  major:      [0, 2, 4, 5, 7, 9, 11],
+  minor:      [0, 2, 3, 5, 7, 8, 10],
+  blues:      [0, 3, 5, 6, 7, 10],
+  japanese:   [0, 1, 5, 7, 8],
+  chromatic:  [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11]
+};
+
+let currentScale = 'pentatonic';
+let currentVoice = 'bell';
+let gravity = { x: 0, y: 0.15 }; // default down
+
+// ================================================================
+//  STRINGS (horizontal lines tuned to notes)
+// ================================================================
+let strings = [];
+
+const NOTE_NAMES = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
+
+function buildStrings() {
+  strings = [];
+  const scale = SCALES[currentScale];
+  const baseOctave = 3; // C3
+  const numOctaves = 3;
+  const notes = [];
+
+  for (let oct = 0; oct < numOctaves; oct++) {
+    for (const semi of scale) {
+      const midi = (baseOctave + oct) * 12 + semi;
+      const freq = 440 * Math.pow(2, (midi - 69) / 12);
+      const name = NOTE_NAMES[semi] + (baseOctave + oct);
+      notes.push({ freq, name, midi, semi });
+    }
+  }
+
+  // Distribute strings vertically
+  const margin = 60;
+  const usableH = H / dpr - margin * 2;
+  const spacing = usableH / (notes.length + 1);
+
+  for (let i = 0; i < notes.length; i++) {
+    const y = margin + spacing * (i + 1);
+    const note = notes[notes.length - 1 - i]; // high notes at top
+
+    // Color based on semitone
+    const hue = (note.semi / 12) * 360;
+
+    strings.push({
+      y,
+      freq: note.freq,
+      name: note.name,
+      midi: note.midi,
+      hue,
+      vibration: 0,      // current vibration amplitude
+      lastHit: 0,        // time of last hit
+      // String extends across most of the screen
+      x1: 80,
+      x2: W / dpr - 80
+    });
+  }
+}
+
+// ================================================================
+//  PARTICLES
+// ================================================================
+let particles = [];
+let nextPId = 0;
+
+class Particle {
+  constructor(x, y, vx, vy) {
+    this.id = nextPId++;
+    this.x = x;
+    this.y = y;
+    this.vx = vx || (Math.random() - 0.5) * 1;
+    this.vy = vy || 0;
+    this.radius = 3 + Math.random() * 2;
+    this.life = 1;
+    this.bounces = 0;
+    this.maxBounces = 15 + Math.floor(Math.random() * 10);
+    this.trail = [];
+    this.trailMax = 20;
+    this.hue = Math.random() * 360;
+    this.alive = true;
+  }
+
+  update() {
+    // Gravity
+    this.vx += gravity.x;
+    this.vy += gravity.y;
+
+    // Damping
+    this.vx *= 0.999;
+    this.vy *= 0.999;
+
+    this.x += this.vx;
+    this.y += this.vy;
+
+    // Trail
+    this.trail.push({ x: this.x, y: this.y });
+    if (this.trail.length > this.trailMax) this.trail.shift();
+
+    // Wall bounce
+    const w = W / dpr, h = H / dpr;
+    if (this.x < 5) { this.x = 5; this.vx *= -0.6; }
+    if (this.x > w - 5) { this.x = w - 5; this.vx *= -0.6; }
+    if (this.y < 5) { this.y = 5; this.vy *= -0.6; this.bounces++; }
+    if (this.y > h - 5) { this.y = h - 5; this.vy *= -0.6; this.bounces++; }
+
+    // Fade with bounces
+    this.life = 1 - (this.bounces / this.maxBounces);
+    if (this.life <= 0 || this.bounces >= this.maxBounces) this.alive = false;
+  }
+
+  checkStrings() {
+    for (const s of strings) {
+      // Check if particle crosses the string line
+      const prevY = this.y - this.vy;
+      if ((prevY < s.y && this.y >= s.y) || (prevY > s.y && this.y <= s.y)) {
+        // Check if within string's horizontal range
+        if (this.x >= s.x1 && this.x <= s.x2) {
+          // Bounce!
+          this.y = s.y + (this.vy > 0 ? -1 : 1) * 2;
+          this.vy *= -0.65;
+
+          // Add slight horizontal scatter
+          this.vx += (Math.random() - 0.5) * 0.5;
+
+          this.bounces++;
+          this.hue = s.hue;
+
+          // Trigger sound
+          const velocity = Math.min(1, Math.sqrt(this.vx * this.vx + this.vy * this.vy) / 5);
+          playNote(s, velocity);
+
+          // Visual feedback
+          s.vibration = 0.8 + velocity * 0.4;
+          s.lastHit = performance.now();
+          spawnRipple(this.x, s.y, s.hue, velocity);
+
+          return true;
+        }
+      }
+    }
+    return false;
+  }
+}
+
+// ================================================================
+//  VISUAL EFFECTS
+// ================================================================
+let ripples = [];
+
+function spawnRipple(x, y, hue, intensity) {
+  ripples.push({
+    x, y, hue,
+    radius: 0,
+    maxRadius: 30 + intensity * 40,
+    life: 1,
+    intensity
+  });
+
+  // Sparkles
+  const n = Math.floor(3 + intensity * 5);
+  for (let i = 0; i < n; i++) {
+    const a = Math.random() * Math.PI * 2;
+    const v = 0.5 + Math.random() * 2 * intensity;
+    ripples.push({
+      type: 'spark',
+      x, y, hue,
+      vx: Math.cos(a) * v,
+      vy: Math.sin(a) * v - 1,
+      life: 1,
+      size: 1 + Math.random() * 2
+    });
+  }
+}
+
+function updateRipples() {
+  for (const r of ripples) {
+    if (r.type === 'spark') {
+      r.x += r.vx;
+      r.y += r.vy;
+      r.vy += 0.03;
+      r.life -= 0.025;
+    } else {
+      r.radius += 2;
+      r.life = 1 - r.radius / r.maxRadius;
+    }
+  }
+  ripples = ripples.filter(r => r.life > 0);
+}
+
+// ================================================================
+//  AUDIO ENGINE
+// ================================================================
+let audioCtx = null;
+let masterGain, reverbGain;
+let compressor;
+
+function initAudio() {
+  audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+
+  // Compressor to prevent clipping
+  compressor = audioCtx.createDynamicsCompressor();
+  compressor.threshold.value = -20;
+  compressor.knee.value = 10;
+  compressor.ratio.value = 8;
+  compressor.connect(audioCtx.destination);
+
+  masterGain = audioCtx.createGain();
+  masterGain.gain.value = 0.3;
+  masterGain.connect(compressor);
+
+  // Delay-based reverb
+  const d1 = audioCtx.createDelay(2); d1.delayTime.value = 0.3;
+  const d2 = audioCtx.createDelay(2); d2.delayTime.value = 0.5;
+  const d3 = audioCtx.createDelay(2); d3.delayTime.value = 0.7;
+  const fb1 = audioCtx.createGain(); fb1.gain.value = 0.25;
+  const fb2 = audioCtx.createGain(); fb2.gain.value = 0.2;
+  const fb3 = audioCtx.createGain(); fb3.gain.value = 0.15;
+  const lp = audioCtx.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 3000;
+
+  reverbGain = audioCtx.createGain();
+  reverbGain.gain.value = 0.35;
+
+  masterGain.connect(d1); d1.connect(fb1); fb1.connect(lp); lp.connect(d1);
+  masterGain.connect(d2); d2.connect(fb2); fb2.connect(d2);
+  masterGain.connect(d3); d3.connect(fb3); fb3.connect(d3);
+  d1.connect(reverbGain); d2.connect(reverbGain); d3.connect(reverbGain);
+  reverbGain.connect(compressor);
+}
+
+function playNote(string, velocity) {
+  if (!audioCtx) return;
+  totalNotes++;
+
+  const t = audioCtx.currentTime;
+  const freq = string.freq;
+  const vol = 0.08 + velocity * 0.15;
+
+  if (currentVoice === 'bell') {
+    // Bell: fundamental + partials with quick decay
+    const partials = [1, 2.0, 3.0, 4.2, 5.4];
+    const amps = [1, 0.5, 0.3, 0.15, 0.08];
+    const decays = [2, 1.2, 0.8, 0.5, 0.3];
+
+    for (let i = 0; i < partials.length; i++) {
+      const osc = audioCtx.createOscillator();
+      osc.type = 'sine';
+      osc.frequency.value = freq * partials[i];
+
+      const g = audioCtx.createGain();
+      g.gain.setValueAtTime(vol * amps[i] * velocity, t);
+      g.gain.exponentialRampToValueAtTime(0.001, t + decays[i]);
+
+      osc.connect(g);
+      g.connect(masterGain);
+      osc.start(t);
+      osc.stop(t + decays[i] + 0.1);
+    }
+  }
+
+  else if (currentVoice === 'pad') {
+    // Pad: soft attack, long sustain with vibrato
+    const osc = audioCtx.createOscillator();
+    osc.type = 'triangle';
+    osc.frequency.value = freq;
+
+    const osc2 = audioCtx.createOscillator();
+    osc2.type = 'sine';
+    osc2.frequency.value = freq * 1.002; // slight detune for chorus
+
+    // Vibrato
+    const lfo = audioCtx.createOscillator();
+    lfo.type = 'sine';
+    lfo.frequency.value = 4;
+    const lfoG = audioCtx.createGain();
+    lfoG.gain.value = 2;
+    lfo.connect(lfoG);
+    lfoG.connect(osc.frequency);
+
+    const g = audioCtx.createGain();
+    g.gain.setValueAtTime(0, t);
+    g.gain.linearRampToValueAtTime(vol * 0.6 * velocity, t + 0.3);
+    g.gain.linearRampToValueAtTime(vol * 0.3 * velocity, t + 1.5);
+    g.gain.linearRampToValueAtTime(0, t + 3);
+
+    const filter = audioCtx.createBiquadFilter();
+    filter.type = 'lowpass';
+    filter.frequency.value = 1500 + velocity * 1000;
+
+    osc.connect(filter); osc2.connect(filter);
+    filter.connect(g); g.connect(masterGain);
+    lfo.start(t); osc.start(t); osc2.start(t);
+    lfo.stop(t + 3.2); osc.stop(t + 3.2); osc2.stop(t + 3.2);
+  }
+
+  else if (currentVoice === 'pluck') {
+    // Pluck: Karplus-Strong approximation
+    const osc = audioCtx.createOscillator();
+    osc.type = 'sawtooth';
+    osc.frequency.value = freq;
+
+    const g = audioCtx.createGain();
+    g.gain.setValueAtTime(vol * velocity, t);
+    g.gain.exponentialRampToValueAtTime(0.001, t + 0.6);
+
+    const filter = audioCtx.createBiquadFilter();
+    filter.type = 'lowpass';
+    filter.frequency.setValueAtTime(freq * 8, t);
+    filter.frequency.exponentialRampToValueAtTime(freq * 1.5, t + 0.3);
+
+    osc.connect(filter);
+    filter.connect(g);
+    g.connect(masterGain);
+    osc.start(t);
+    osc.stop(t + 0.8);
+  }
+
+  else if (currentVoice === 'glass') {
+    // Glass: pure sine with long ring
+    const osc = audioCtx.createOscillator();
+    osc.type = 'sine';
+    osc.frequency.value = freq;
+
+    const osc2 = audioCtx.createOscillator();
+    osc2.type = 'sine';
+    osc2.frequency.value = freq * 3; // 3rd harmonic (glass-like)
+
+    const g = audioCtx.createGain();
+    g.gain.setValueAtTime(vol * 0.8 * velocity, t);
+    g.gain.exponentialRampToValueAtTime(0.001, t + 4);
+
+    const g2 = audioCtx.createGain();
+    g2.gain.setValueAtTime(vol * 0.2 * velocity, t);
+    g2.gain.exponentialRampToValueAtTime(0.001, t + 2);
+
+    osc.connect(g); g.connect(masterGain);
+    osc2.connect(g2); g2.connect(masterGain);
+    osc.start(t); osc2.start(t);
+    osc.stop(t + 4.2); osc2.stop(t + 2.2);
+  }
+}
+
+// ================================================================
+//  RAIN MODE
+// ================================================================
+let rainMode = false;
+
+function rainTick() {
+  if (!rainMode) return;
+  if (Math.random() < 0.08) {
+    const x = 100 + Math.random() * (W / dpr - 200);
+    const y = 20 + Math.random() * 30;
+    particles.push(new Particle(x, y, (Math.random() - 0.5) * 2, Math.random() * 0.5));
+  }
+}
+
+// ================================================================
+//  RENDER
+// ================================================================
+function render(time) {
+  const w = W / dpr, h = H / dpr;
+
+  // Background
+  bgCtx.fillStyle = '#08080e';
+  bgCtx.fillRect(0, 0, w, h);
+
+  // Subtle vertical gradient
+  const bg = bgCtx.createLinearGradient(0, 0, 0, h);
+  bg.addColorStop(0, 'rgba(12,10,25,1)');
+  bg.addColorStop(0.5, 'rgba(8,8,14,1)');
+  bg.addColorStop(1, 'rgba(10,12,18,1)');
+  bgCtx.fillStyle = bg;
+  bgCtx.fillRect(0, 0, w, h);
+
+  // Main layer
+  ctx.clearRect(0, 0, w, h);
+
+  // === STRINGS ===
+  for (const s of strings) {
+    const vib = s.vibration;
+    s.vibration *= 0.96; // decay
+
+    // String glow (on hit)
+    if (vib > 0.05) {
+      const glowG = ctx.createLinearGradient(s.x1, s.y - 20, s.x1, s.y + 20);
+      glowG.addColorStop(0, `hsla(${s.hue},70%,60%,0)`);
+      glowG.addColorStop(0.5, `hsla(${s.hue},70%,60%,${vib * 0.06})`);
+      glowG.addColorStop(1, `hsla(${s.hue},70%,60%,0)`);
+      ctx.fillStyle = glowG;
+      ctx.fillRect(s.x1, s.y - 20, s.x2 - s.x1, 40);
+    }
+
+    // String line (with vibration wave)
+    ctx.beginPath();
+    ctx.moveTo(s.x1, s.y);
+
+    if (vib > 0.02) {
+      const segments = 60;
+      for (let i = 0; i <= segments; i++) {
+        const t2 = i / segments;
+        const sx = s.x1 + (s.x2 - s.x1) * t2;
+        // Standing wave pattern
+        const wave = Math.sin(t2 * Math.PI) * Math.sin(time * 0.02 + s.freq * 0.01) * vib * 4;
+        const wave2 = Math.sin(t2 * Math.PI * 2) * Math.cos(time * 0.015 + s.freq * 0.02) * vib * 2;
+        ctx.lineTo(sx, s.y + wave + wave2);
+      }
+    } else {
+      ctx.lineTo(s.x2, s.y);
+    }
+
+    const alpha = 0.08 + vib * 0.3;
+    ctx.strokeStyle = `hsla(${s.hue},60%,55%,${alpha})`;
+    ctx.lineWidth = 1 + vib * 2;
+    ctx.stroke();
+
+    // Note name label
+    if (vib > 0.1) {
+      ctx.fillStyle = `hsla(${s.hue},60%,65%,${vib * 0.4})`;
+      ctx.font = '9px JetBrains Mono';
+      ctx.textAlign = 'right';
+      ctx.fillText(s.name, s.x1 - 10, s.y + 3);
+    } else {
+      ctx.fillStyle = `hsla(${s.hue},30%,50%,.06)`;
+      ctx.font = '8px JetBrains Mono';
+      ctx.textAlign = 'right';
+      ctx.fillText(s.name, s.x1 - 10, s.y + 3);
+    }
+  }
+
+  // === PARTICLES ===
+  for (const p of particles) {
+    if (!p.alive) continue;
+    const alpha = p.life * 0.8;
+
+    // Trail
+    if (p.trail.length > 1) {
+      for (let i = 1; i < p.trail.length; i++) {
+        const ta = (i / p.trail.length) * alpha * 0.3;
+        ctx.beginPath();
+        ctx.moveTo(p.trail[i - 1].x, p.trail[i - 1].y);
+        ctx.lineTo(p.trail[i].x, p.trail[i].y);
+        ctx.strokeStyle = `hsla(${p.hue},60%,60%,${ta})`;
+        ctx.lineWidth = p.radius * 0.5 * (i / p.trail.length);
+        ctx.stroke();
+      }
+    }
+
+    // Glow
+    const glowR = p.radius * 3;
+    const glow = ctx.createRadialGradient(p.x, p.y, 0, p.x, p.y, glowR);
+    glow.addColorStop(0, `hsla(${p.hue},60%,60%,${alpha * 0.15})`);
+    glow.addColorStop(1, `hsla(${p.hue},60%,60%,0)`);
+    ctx.beginPath(); ctx.arc(p.x, p.y, glowR, 0, Math.PI * 2);
+    ctx.fillStyle = glow; ctx.fill();
+
+    // Core
+    ctx.beginPath(); ctx.arc(p.x, p.y, p.radius * p.life, 0, Math.PI * 2);
+    const core = ctx.createRadialGradient(p.x, p.y, 0, p.x, p.y, p.radius * p.life);
+    core.addColorStop(0, `hsla(${p.hue},40%,90%,${alpha})`);
+    core.addColorStop(0.5, `hsla(${p.hue},60%,60%,${alpha * 0.7})`);
+    core.addColorStop(1, `hsla(${p.hue},60%,40%,${alpha * 0.2})`);
+    ctx.fillStyle = core; ctx.fill();
+  }
+
+  // === FX LAYER (ripples, sparks) ===
+  fxCtx.clearRect(0, 0, w, h);
+
+  for (const r of ripples) {
+    if (r.type === 'spark') {
+      fxCtx.beginPath();
+      fxCtx.arc(r.x, r.y, r.size, 0, Math.PI * 2);
+      fxCtx.fillStyle = `hsla(${r.hue},60%,70%,${r.life * 0.5})`;
+      fxCtx.fill();
+    } else {
+      fxCtx.beginPath();
+      fxCtx.arc(r.x, r.y, r.radius, 0, Math.PI * 2);
+      fxCtx.strokeStyle = `hsla(${r.hue},60%,60%,${r.life * 0.15 * r.intensity})`;
+      fxCtx.lineWidth = 1.5;
+      fxCtx.stroke();
+
+      // Inner bright ring
+      if (r.life > 0.5) {
+        fxCtx.beginPath();
+        fxCtx.arc(r.x, r.y, r.radius * 0.5, 0, Math.PI * 2);
+        fxCtx.strokeStyle = `hsla(${r.hue},50%,80%,${(r.life - 0.5) * 0.2 * r.intensity})`;
+        fxCtx.lineWidth = 1;
+        fxCtx.stroke();
+      }
+    }
+  }
+
+  // Vignette on fx layer
+  const vg = fxCtx.createRadialGradient(w / 2, h / 2, w * 0.3, w / 2, h / 2, Math.max(w, h) * 0.7);
+  vg.addColorStop(0, 'rgba(0,0,0,0)');
+  vg.addColorStop(1, 'rgba(0,0,0,.35)');
+  fxCtx.fillStyle = vg;
+  fxCtx.fillRect(0, 0, w, h);
+}
+
+// ================================================================
+//  MOUSE
+// ================================================================
+let mouseDown = false;
+let lastSpawn = 0;
+
+mainC.addEventListener('mousedown', e => {
+  if (!started) return;
+  mouseDown = true;
+  spawnAt(e.clientX, e.clientY);
+});
+
+document.addEventListener('mousemove', e => {
+  if (!started || !mouseDown) return;
+  const now = performance.now();
+  if (now - lastSpawn > 60) {
+    spawnAt(e.clientX, e.clientY);
+    lastSpawn = now;
+  }
+});
+
+document.addEventListener('mouseup', () => { mouseDown = false; });
+
+mainC.addEventListener('touchstart', e => {
+  if (!started) return;
+  e.preventDefault();
+  mouseDown = true;
+  spawnAt(e.touches[0].clientX, e.touches[0].clientY);
+}, { passive: false });
+
+mainC.addEventListener('touchmove', e => {
+  if (!started || !mouseDown) return;
+  e.preventDefault();
+  const now = performance.now();
+  if (now - lastSpawn > 60) {
+    spawnAt(e.touches[0].clientX, e.touches[0].clientY);
+    lastSpawn = now;
+  }
+}, { passive: false });
+
+mainC.addEventListener('touchend', () => { mouseDown = false; });
+
+function spawnAt(sx, sy) {
+  const p = new Particle(sx, sy, (Math.random() - 0.5) * 1.5, Math.random() * 0.5);
+  particles.push(p);
+}
+
+// Gravity angle via scroll
+mainC.addEventListener('wheel', e => {
+  e.preventDefault();
+  const angle = Math.atan2(gravity.y, gravity.x);
+  const mag = Math.sqrt(gravity.x * gravity.x + gravity.y * gravity.y);
+  const newAngle = angle + (e.deltaY > 0 ? 0.1 : -0.1);
+  gravity.x = Math.cos(newAngle) * mag;
+  gravity.y = Math.sin(newAngle) * mag;
+}, { passive: false });
+
+// ================================================================
+//  KEYBOARD
+// ================================================================
+document.addEventListener('keydown', e => {
+  if (!started) return;
+  if (e.key === 'r' || e.key === 'R') { rainMode = !rainMode; toast(rainMode ? 'rain mode' : 'manual mode'); }
+  if (e.key === 'c' || e.key === 'C') { particles = []; ripples = []; }
+  if (e.key === 's' || e.key === 'S') saveImg();
+  if (e.key === ' ') { e.preventDefault(); rainMode = !rainMode; toast(rainMode ? 'rain mode' : 'manual mode'); }
+});
+
+// ================================================================
+//  CONTROLS
+// ================================================================
+function setScale(name) {
+  currentScale = name;
+  buildStrings();
+  document.querySelectorAll('#scaleCtrl .cbtn').forEach(b => b.classList.remove('act'));
+  event.target.classList.add('act');
+  toast(name);
+}
+
+function setVoice(name) {
+  currentVoice = name;
+  document.querySelectorAll('#bctrl .cbtn').forEach(b => {
+    if (['bell', 'pad', 'pluck', 'glass'].includes(b.textContent)) {
+      b.classList.toggle('act', b.textContent === name);
+    }
+  });
+}
+
+function setGravity(type) {
+  if (type === 'down') gravity = { x: 0, y: 0.15 };
+  if (type === 'low') gravity = { x: 0, y: 0.05 };
+  if (type === 'float') gravity = { x: 0, y: 0.005 };
+  toast(type === 'float' ? 'microgravity' : type + ' gravity');
+}
+
+// ================================================================
+//  UTILS
+// ================================================================
+let toastTimer = null;
+function toast(txt) {
+  const el = document.getElementById('toast');
+  el.textContent = txt; el.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => el.classList.remove('show'), 2500);
+}
+
+function saveImg() {
+  const sc = document.createElement('canvas');
+  sc.width = W; sc.height = H;
+  const sx = sc.getContext('2d');
+  sx.drawImage(bgC, 0, 0);
+  sx.drawImage(mainC, 0, 0);
+  sx.drawImage(fxC, 0, 0);
+  const link = document.createElement('a');
+  link.download = `resonance_${Date.now()}.png`;
+  link.href = sc.toDataURL('image/png');
+  link.click();
+}
+
+// ================================================================
+//  RESIZE
+// ================================================================
+function resize() {
+  dpr = window.devicePixelRatio || 1;
+  W = window.innerWidth * dpr; H = window.innerHeight * dpr;
+  [bgC, mainC, fxC].forEach(c => {
+    c.width = W; c.height = H;
+    c.style.width = window.innerWidth + 'px';
+    c.style.height = window.innerHeight + 'px';
+    c.getContext('2d').setTransform(dpr, 0, 0, dpr, 0, 0);
+  });
+  if (started) buildStrings();
+}
+window.addEventListener('resize', resize);
+resize();
+
+// ================================================================
+//  MAIN LOOP
+// ================================================================
+function loop(time) {
+  requestAnimationFrame(loop);
+  if (!started) return;
+  frame++;
+
+  // Rain
+  rainTick();
+
+  // Update particles
+  for (const p of particles) {
+    if (!p.alive) continue;
+    p.update();
+    p.checkStrings();
+  }
+  particles = particles.filter(p => p.alive);
+
+  // Cap particles
+  if (particles.length > 300) particles.splice(0, particles.length - 300);
+
+  updateRipples();
+  render(time);
+
+  // HUD
+  if (frame % 10 === 0) {
+    document.getElementById('hParts').textContent = particles.length;
+    document.getElementById('hNotes').textContent = totalNotes;
+  }
+}
+
+// ================================================================
+//  START
+// ================================================================
+document.getElementById('enterBtn').addEventListener('click', () => {
+  initAudio();
+  buildStrings();
+
+  document.getElementById('intro').classList.add('fade');
+  setTimeout(() => document.getElementById('intro').style.display = 'none', 2000);
+  document.querySelectorAll('.hud,.ctrl,.bctrl').forEach(e => e.classList.add('vis'));
+  started = true;
+
+  // Start with a gentle rain to show the concept
+  setTimeout(() => {
+    rainMode = true;
+    toast('rain mode — click anywhere to drop particles');
+    setTimeout(() => { rainMode = false; }, 8000);
+  }, 500);
+});
+
+requestAnimationFrame(loop);
+</script>
+</body>
+</html>
