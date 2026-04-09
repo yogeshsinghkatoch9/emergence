@@ -8,7 +8,7 @@
   @import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;1,300&family=Inter:wght@300;400&display=swap');
   *{margin:0;padding:0;box-sizing:border-box}
   body{background:#060608;color:#fff;font-family:'Inter',sans-serif;overflow:hidden;height:100vh;width:100vw}
-  canvas{display:block;position:absolute;top:0;left:0;cursor:crosshair}
+  #canvas{display:block;position:absolute;top:0;left:0;width:100vw;height:100vh;image-rendering:auto;cursor:crosshair}
 
   #intro{position:fixed;inset:0;z-index:100;background:#060608;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;transition:opacity 1.2s}
   #intro.hide{opacity:0;pointer-events:none}
@@ -101,27 +101,25 @@
 <div class="preset-bar" id="presetBar"></div>
 
 <script>
+// Canvas is at simulation resolution; CSS scales it to fullscreen
 const canvas=document.getElementById('canvas');
 const ctx=canvas.getContext('2d');
 
-// Simulation grid — lower resolution for performance
 const SCALE=3;
-let W,H,GW,GH;
-let a,b,a2,b2; // chemical concentrations (double-buffered)
+let GW,GH;
+let a,b,a2,b2;
 let generation=0;
 let paused=false;
 let running=false;
 let brushRadius=8;
 let mouseDown=false,mx=0,my=0;
 
-// Parameters (Gray-Scott model)
 let feed=0.055;
 let kill=0.062;
 let Da=1.0;
 let Db=0.5;
 let stepsPerFrame=8;
 
-// Presets — carefully tuned feed/kill pairs
 const PRESETS={
   'spots':       {f:0.035, k:0.065, Da:1.0, Db:0.5, desc:'mitotic spots'},
   'stripes':     {f:0.060, k:0.062, Da:1.0, Db:0.5, desc:'zebra stripes'},
@@ -135,62 +133,29 @@ const PRESETS={
   'chaos':       {f:0.026, k:0.051, Da:1.0, Db:0.5, desc:'unstable chaos'},
 };
 
-// Color palettes
 const PALETTES={
-  'bioluminescent':{
-    name:'bioluminescent',
-    colors:[[6,6,8],[0,20,40],[0,80,120],[0,180,200],[140,255,220],[255,255,255]],
-    bg:'#001428'
-  },
-  'thermal':{
-    name:'thermal',
-    colors:[[10,0,20],[40,0,80],[160,0,80],[255,80,0],[255,200,0],[255,255,220]],
-    bg:'#0a0014'
-  },
-  'bone':{
-    name:'bone',
-    colors:[[20,15,12],[50,40,35],[100,85,70],[160,145,125],[210,200,185],[245,240,230]],
-    bg:'#140f0c'
-  },
-  'ink':{
-    name:'ink',
-    colors:[[240,235,225],[200,190,175],[120,110,100],[60,55,50],[25,22,20],[8,6,6]],
-    bg:'#f0ebe1'
-  },
-  'abyss':{
-    name:'abyss',
-    colors:[[2,2,8],[10,5,40],[30,10,80],[80,20,140],[160,60,200],[220,180,255]],
-    bg:'#020208'
-  },
-  'ember':{
-    name:'ember',
-    colors:[[8,4,2],[30,8,4],[80,15,5],[180,40,10],[255,120,20],[255,220,140]],
-    bg:'#080402'
-  },
-  'moss':{
-    name:'moss',
-    colors:[[5,10,5],[15,30,10],[30,60,20],[60,120,40],[120,180,80],[200,240,160]],
-    bg:'#050a05'
-  },
-  'ocean':{
-    name:'ocean',
-    colors:[[2,5,15],[5,15,45],[10,40,90],[30,90,150],[80,160,200],[180,230,240]],
-    bg:'#02050f'
-  },
+  'bioluminescent':{colors:[[6,6,8],[0,20,40],[0,80,120],[0,180,200],[140,255,220],[255,255,255]]},
+  'thermal':{colors:[[10,0,20],[40,0,80],[160,0,80],[255,80,0],[255,200,0],[255,255,220]]},
+  'bone':{colors:[[20,15,12],[50,40,35],[100,85,70],[160,145,125],[210,200,185],[245,240,230]]},
+  'ink':{colors:[[240,235,225],[200,190,175],[120,110,100],[60,55,50],[25,22,20],[8,6,6]]},
+  'abyss':{colors:[[2,2,8],[10,5,40],[30,10,80],[80,20,140],[160,60,200],[220,180,255]]},
+  'ember':{colors:[[8,4,2],[30,8,4],[80,15,5],[180,40,10],[255,120,20],[255,220,140]]},
+  'moss':{colors:[[5,10,5],[15,30,10],[30,60,20],[60,120,40],[120,180,80],[200,240,160]]},
+  'ocean':{colors:[[2,5,15],[5,15,45],[10,40,90],[30,90,150],[80,160,200],[180,230,240]]},
 };
 
 let currentPalette='bioluminescent';
 let currentPreset='coral';
-let lut=new Uint8Array(256*3); // lookup table for fast coloring
+let lut=new Uint8Array(256*3);
 
 function buildLUT(){
   const pal=PALETTES[currentPalette].colors;
   const n=pal.length-1;
   for(let i=0;i<256;i++){
     const t=i/255*n;
-    const idx=Math.min(Math.floor(t),n-1);
-    const frac=t-idx;
-    const c0=pal[idx],c1=pal[idx+1];
+    const ci=Math.min(Math.floor(t),n-1);
+    const frac=t-ci;
+    const c0=pal[ci],c1=pal[ci+1];
     lut[i*3]=c0[0]+(c1[0]-c0[0])*frac;
     lut[i*3+1]=c0[1]+(c1[1]-c0[1])*frac;
     lut[i*3+2]=c0[2]+(c1[2]-c0[2])*frac;
@@ -198,34 +163,21 @@ function buildLUT(){
 }
 
 function resize(){
-  W=innerWidth;H=innerHeight;
-  canvas.width=W;canvas.height=H;
-  GW=Math.floor(W/SCALE);
-  GH=Math.floor(H/SCALE);
+  GW=Math.floor(innerWidth/SCALE);
+  GH=Math.floor(innerHeight/SCALE);
+  // Canvas pixel resolution = simulation resolution
+  // CSS stretches it to fill the viewport
+  canvas.width=GW;
+  canvas.height=GH;
   initArrays();
 }
 
 function initArrays(){
   const sz=GW*GH;
-  a=new Float32Array(sz);
-  b=new Float32Array(sz);
-  a2=new Float32Array(sz);
-  b2=new Float32Array(sz);
-  // Fill A=1, B=0
-  a.fill(1);b.fill(0);
-  a2.fill(1);b2.fill(0);
+  a=new Float32Array(sz);b=new Float32Array(sz);
+  a2=new Float32Array(sz);b2=new Float32Array(sz);
+  a.fill(1);b.fill(0);a2.fill(1);b2.fill(0);
   generation=0;
-}
-
-function seedRandom(){
-  // Scatter random B seeds
-  const count=12+Math.floor(Math.random()*8);
-  for(let s=0;s<count;s++){
-    const cx=Math.floor(Math.random()*GW);
-    const cy=Math.floor(Math.random()*GH);
-    const r=Math.floor(Math.random()*8)+4;
-    seedAt(cx,cy,r);
-  }
 }
 
 function seedAt(cx,cy,r){
@@ -234,101 +186,68 @@ function seedAt(cx,cy,r){
       if(dx*dx+dy*dy>r*r)continue;
       const x=(cx+dx+GW)%GW;
       const y=(cy+dy+GH)%GH;
-      const id=x+y*GW;
-      b[id]=1;
-      // slight noise in A
-      a[id]=Math.max(0,a[id]-.1+Math.random()*.2);
+      b[x+y*GW]=1;
+      a[x+y*GW]=Math.max(0,a[x+y*GW]-.1+Math.random()*.2);
     }
+  }
+}
+
+function seedRandom(){
+  const count=12+Math.floor(Math.random()*8);
+  for(let s=0;s<count;s++){
+    seedAt(Math.floor(Math.random()*GW),Math.floor(Math.random()*GH),Math.floor(Math.random()*8)+4);
   }
 }
 
 function seedCenter(){
   const cx=Math.floor(GW/2),cy=Math.floor(GH/2);
   seedAt(cx,cy,12);
-  // Also seed a few random spots for variety
   for(let i=0;i<5;i++){
-    const sx=cx+Math.floor((Math.random()-.5)*GW*.4);
-    const sy=cy+Math.floor((Math.random()-.5)*GH*.4);
-    seedAt(sx,sy,Math.floor(Math.random()*6)+3);
+    seedAt(cx+Math.floor((Math.random()-.5)*GW*.4),cy+Math.floor((Math.random()-.5)*GH*.4),Math.floor(Math.random()*6)+3);
   }
 }
 
-// Gray-Scott reaction-diffusion step
+// Gray-Scott step
 function step(){
   const w=GW,h=GH;
-  const dt=1.0;
-
   for(let y=0;y<h;y++){
     const ym=(y-1+h)%h,yp=(y+1)%h;
     for(let x=0;x<w;x++){
       const xm=(x-1+w)%w,xp=(x+1)%w;
       const id=x+y*w;
-
-      const aVal=a[id];
-      const bVal=b[id];
-
-      // Laplacian (5-point stencil)
-      const lapA=a[xm+y*w]+a[xp+y*w]+a[x+ym*w]+a[x+yp*w]-4*aVal;
-      const lapB=b[xm+y*w]+b[xp+y*w]+b[x+ym*w]+b[x+yp*w]-4*bVal;
-
-      const abb=aVal*bVal*bVal;
-
-      a2[id]=aVal+(Da*lapA-abb+feed*(1-aVal))*dt;
-      b2[id]=bVal+(Db*lapB+abb-(kill+feed)*bVal)*dt;
-
-      // Clamp
-      if(a2[id]<0)a2[id]=0;if(a2[id]>1)a2[id]=1;
-      if(b2[id]<0)b2[id]=0;if(b2[id]>1)b2[id]=1;
+      const aV=a[id],bV=b[id];
+      const lapA=a[xm+y*w]+a[xp+y*w]+a[x+ym*w]+a[x+yp*w]-4*aV;
+      const lapB=b[xm+y*w]+b[xp+y*w]+b[x+ym*w]+b[x+yp*w]-4*bV;
+      const abb=aV*bV*bV;
+      a2[id]=Math.max(0,Math.min(1,aV+Da*lapA-abb+feed*(1-aV)));
+      b2[id]=Math.max(0,Math.min(1,bV+Db*lapB+abb-(kill+feed)*bV));
     }
   }
-
-  // Swap
-  [a,a2]=[a2,a];
-  [b,b2]=[b2,b];
+  [a,a2]=[a2,a];[b,b2]=[b2,b];
   generation++;
 }
 
-// Render — offscreen canvas to avoid self-draw artifacts
-let offCanvas,offCtx,imgData;
-function ensureOffscreen(){
-  if(!offCanvas||offCanvas.width!==GW||offCanvas.height!==GH){
-    offCanvas=document.createElement('canvas');
-    offCanvas.width=GW;offCanvas.height=GH;
-    offCtx=offCanvas.getContext('2d');
-    imgData=offCtx.createImageData(GW,GH);
-  }
-}
+// Render — direct putImageData at sim resolution, CSS handles scaling
+let imgData;
 function render(){
-  ensureOffscreen();
-  const data=imgData.data;
-  const w=GW,h=GH;
-
-  for(let y=0;y<h;y++){
-    for(let x=0;x<w;x++){
-      const id=x+y*w;
-      const px=id*4;
-
-      const bVal=b[id];
-      const aVal=a[id];
-
-      let val=bVal*1.4-aVal*.05+.05;
-      val=Math.max(0,Math.min(1,val));
-      const ci=Math.floor(val*255);
-
-      data[px]=lut[ci*3];
-      data[px+1]=lut[ci*3+1];
-      data[px+2]=lut[ci*3+2];
-      data[px+3]=255;
-    }
+  if(!imgData||imgData.width!==GW||imgData.height!==GH){
+    imgData=ctx.createImageData(GW,GH);
   }
-
-  offCtx.putImageData(imgData,0,0);
-  ctx.imageSmoothingEnabled=true;
-  ctx.imageSmoothingQuality='high';
-  ctx.drawImage(offCanvas,0,0,GW,GH,0,0,W,H);
+  const data=imgData.data;
+  for(let i=0,n=GW*GH;i<n;i++){
+    const px=i*4;
+    let val=b[i]*1.4-a[i]*.05+.05;
+    if(val<0)val=0;else if(val>1)val=1;
+    const ci=(val*255)|0;
+    data[px]=lut[ci*3];
+    data[px+1]=lut[ci*3+1];
+    data[px+2]=lut[ci*3+2];
+    data[px+3]=255;
+  }
+  ctx.putImageData(imgData,0,0);
 }
 
-// Input
+// Input — convert screen coords to sim coords
 canvas.addEventListener('mousedown',e=>{mouseDown=true;mx=e.clientX;my=e.clientY;paint(mx,my)});
 canvas.addEventListener('mousemove',e=>{mx=e.clientX;my=e.clientY;if(mouseDown)paint(mx,my)});
 canvas.addEventListener('mouseup',()=>{mouseDown=false});
@@ -344,55 +263,44 @@ addEventListener('wheel',e=>{
 },{passive:true});
 
 function paint(sx,sy){
-  const cx=Math.floor(sx/SCALE);
-  const cy=Math.floor(sy/SCALE);
+  // Convert screen coordinates to grid coordinates
+  const cx=Math.floor(sx/innerWidth*GW);
+  const cy=Math.floor(sy/innerHeight*GH);
   const r=Math.floor(brushRadius);
   for(let dy=-r;dy<=r;dy++){
     for(let dx=-r;dx<=r;dx++){
       if(dx*dx+dy*dy>r*r)continue;
       const x=(cx+dx+GW)%GW;
       const y=(cy+dy+GH)%GH;
-      const id=x+y*GW;
       const dist=Math.sqrt(dx*dx+dy*dy)/r;
-      const w=Math.exp(-dist*dist*2);
-      b[id]=Math.min(1,b[id]+w*.8);
+      b[x+y*GW]=Math.min(1,b[x+y*GW]+Math.exp(-dist*dist*2)*.8);
     }
   }
 }
 
 // Sliders
 document.getElementById('feedSlider').addEventListener('input',e=>{
-  feed=e.target.value/10000;
-  document.getElementById('feedVal').textContent=feed.toFixed(4);
+  feed=e.target.value/10000;document.getElementById('feedVal').textContent=feed.toFixed(4);
 });
 document.getElementById('killSlider').addEventListener('input',e=>{
-  kill=e.target.value/10000;
-  document.getElementById('killVal').textContent=kill.toFixed(4);
+  kill=e.target.value/10000;document.getElementById('killVal').textContent=kill.toFixed(4);
 });
 document.getElementById('daSlider').addEventListener('input',e=>{
-  Da=e.target.value/100;
-  document.getElementById('daVal').textContent=Da.toFixed(2);
+  Da=e.target.value/100;document.getElementById('daVal').textContent=Da.toFixed(2);
 });
 document.getElementById('dbSlider').addEventListener('input',e=>{
-  Db=e.target.value/100;
-  document.getElementById('dbVal').textContent=Db.toFixed(2);
+  Db=e.target.value/100;document.getElementById('dbVal').textContent=Db.toFixed(2);
 });
 document.getElementById('speedSlider').addEventListener('input',e=>{
-  stepsPerFrame=parseInt(e.target.value);
-  document.getElementById('speedVal').textContent=stepsPerFrame;
+  stepsPerFrame=parseInt(e.target.value);document.getElementById('speedVal').textContent=stepsPerFrame;
 });
 document.getElementById('brushSlider').addEventListener('input',e=>{
-  brushRadius=parseFloat(e.target.value);
-  document.getElementById('brushVal').textContent=Math.round(brushRadius);
+  brushRadius=parseFloat(e.target.value);document.getElementById('brushVal').textContent=Math.round(brushRadius);
 });
 
-// Presets
 function loadPreset(name){
   const p=PRESETS[name];if(!p)return;
-  currentPreset=name;
-  feed=p.f;kill=p.k;Da=p.Da;Db=p.Db;
-
-  // Update sliders
+  currentPreset=name;feed=p.f;kill=p.k;Da=p.Da;Db=p.Db;
   document.getElementById('feedSlider').value=Math.round(feed*10000);
   document.getElementById('killSlider').value=Math.round(kill*10000);
   document.getElementById('daSlider').value=Math.round(Da*100);
@@ -401,84 +309,58 @@ function loadPreset(name){
   document.getElementById('killVal').textContent=kill.toFixed(4);
   document.getElementById('daVal').textContent=Da.toFixed(2);
   document.getElementById('dbVal').textContent=Db.toFixed(2);
-
   document.querySelectorAll('.preset-btn').forEach(b=>b.classList.remove('active'));
   const el=document.querySelector(`.preset-btn[data-preset="${name}"]`);
   if(el)el.classList.add('active');
-
-  // Update info
   document.querySelector('.info-sub').textContent=p.desc+' · click to seed · scroll brush';
 }
 
-function applyPresetAndReset(name){
-  loadPreset(name);
-  resetSim();
-}
+function applyPresetAndReset(name){loadPreset(name);resetSim()}
 
-// Build preset buttons
 const presetBar=document.getElementById('presetBar');
 Object.keys(PRESETS).forEach(name=>{
   const btn=document.createElement('div');
   btn.className='preset-btn'+(name===currentPreset?' active':'');
-  btn.textContent=name;
-  btn.dataset.preset=name;
+  btn.textContent=name;btn.dataset.preset=name;
   btn.onclick=()=>applyPresetAndReset(name);
   presetBar.appendChild(btn);
 });
 
-// Build palette buttons
 const palBar=document.getElementById('paletteBar');
 Object.keys(PALETTES).forEach(name=>{
   const pal=PALETTES[name];
   const btn=document.createElement('div');
   btn.className='pal-btn'+(name===currentPalette?' active':'');
-  // Create gradient background
-  const colors=pal.colors;
-  const stops=colors.map((c,i)=>`rgb(${c[0]},${c[1]},${c[2]}) ${Math.round(i/(colors.length-1)*100)}%`).join(',');
+  const stops=pal.colors.map((c,i)=>`rgb(${c[0]},${c[1]},${c[2]}) ${Math.round(i/(pal.colors.length-1)*100)}%`).join(',');
   btn.style.background=`linear-gradient(135deg,${stops})`;
   btn.title=name;
   btn.onclick=()=>{
-    currentPalette=name;
-    buildLUT();
+    currentPalette=name;buildLUT();
     document.querySelectorAll('.pal-btn').forEach(b=>b.classList.remove('active'));
     btn.classList.add('active');
   };
   palBar.appendChild(btn);
 });
 
-function resetSim(){
-  initArrays();
-  seedCenter();
-  seedRandom();
-}
-
-function togglePause(){
-  paused=!paused;
-}
+function resetSim(){initArrays();seedCenter();seedRandom()}
+function togglePause(){paused=!paused}
 
 function saveImage(){
-  // Render at full res
   render();
   const link=document.createElement('a');
   link.download=`turing-${currentPreset}-${generation}.png`;
-  link.href=canvas.toDataURL('image/png');
-  link.click();
+  link.href=canvas.toDataURL('image/png');link.click();
 }
 
-// Keyboard
 addEventListener('keydown',e=>{
   if(e.key===' '){e.preventDefault();togglePause()}
   if(e.key==='r')resetSim();
   if(e.key==='s'&&!e.metaKey&&!e.ctrlKey)saveImage();
-  // Number keys for presets
   const presetNames=Object.keys(PRESETS);
   const num=parseInt(e.key);
-  if(num>=1&&num<=presetNames.length){
-    applyPresetAndReset(presetNames[num-1]);
-  }
+  if(num>=1&&num<=presetNames.length)applyPresetAndReset(presetNames[num-1]);
 });
 
-// Main loop
 function tick(){
   if(!running){requestAnimationFrame(tick);return}
   if(!paused){
@@ -495,21 +377,11 @@ function start(){
   document.getElementById('controls').style.display='flex';
   document.getElementById('presetBar').style.display='flex';
   document.getElementById('paletteBar').style.display='flex';
-  running=true;
-  loadPreset('coral');
-  seedCenter();
-  seedRandom();
+  running=true;loadPreset('coral');seedCenter();seedRandom();
 }
 
-addEventListener('resize',()=>{
-  // Preserve state through resize is complex; just reset
-  resize();
-  if(running){seedCenter();seedRandom()}
-});
-
-resize();
-buildLUT();
-requestAnimationFrame(tick);
+addEventListener('resize',()=>{resize();if(running){seedCenter();seedRandom()}});
+resize();buildLUT();requestAnimationFrame(tick);
 </script>
 </body>
 </html>
