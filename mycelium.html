@@ -1,0 +1,596 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Mycelium — The Wood Wide Web</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;1,300&family=Inter:wght@300;400&display=swap');
+  *{margin:0;padding:0;box-sizing:border-box}
+  body{background:#0a0806;color:#fff;font-family:'Inter',sans-serif;overflow:hidden;height:100vh;width:100vw}
+  canvas{display:block;position:absolute;top:0;left:0}
+
+  #intro{position:fixed;inset:0;z-index:100;background:#0a0806;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;transition:opacity 1.2s}
+  #intro.hide{opacity:0;pointer-events:none}
+  #intro h1{font-family:'Cormorant Garamond',serif;font-size:clamp(42px,7vw,72px);font-weight:300;letter-spacing:10px;text-transform:lowercase;color:rgba(255,255,255,.8);margin-bottom:12px}
+  #intro .sub{font-size:13px;font-weight:300;color:rgba(255,255,255,.15);letter-spacing:3px;max-width:460px;line-height:1.8;margin-bottom:6px}
+  #intro .sub2{font-size:11px;font-weight:300;color:rgba(255,255,255,.08);letter-spacing:2px;max-width:400px;line-height:1.7;margin-bottom:28px;font-style:italic;font-family:'Cormorant Garamond',serif}
+  #intro button{background:none;border:1px solid rgba(255,255,255,.1);color:rgba(255,255,255,.5);font-family:'Cormorant Garamond',serif;font-size:18px;letter-spacing:6px;padding:14px 48px;border-radius:60px;cursor:pointer;transition:all .4s}
+  #intro button:hover{border-color:rgba(255,255,255,.3);color:rgba(255,255,255,.8);box-shadow:0 0 40px rgba(255,200,120,.05)}
+
+  .info{position:fixed;top:20px;left:20px;z-index:10;display:none}
+  .info-title{font-family:'Cormorant Garamond',serif;font-size:28px;font-weight:300;color:rgba(255,200,120,.08);letter-spacing:6px}
+  .info-stats{font-size:9px;color:rgba(255,255,255,.06);letter-spacing:1px;margin-top:4px;font-variant-numeric:tabular-nums}
+  .info-hint{font-size:9px;color:rgba(255,255,255,.05);letter-spacing:2px;margin-top:2px}
+
+  #controls{position:fixed;top:20px;right:20px;z-index:10;display:none;flex-direction:column;gap:5px;align-items:flex-end}
+  .ctrl-row{display:flex;align-items:center;gap:8px}
+  .ctrl-label{font-size:9px;color:rgba(255,200,120,.1);letter-spacing:2px;text-transform:uppercase;min-width:60px;text-align:right}
+  .ctrl-slider{-webkit-appearance:none;appearance:none;width:80px;height:2px;background:rgba(255,200,120,.06);border-radius:2px;outline:none}
+  .ctrl-slider::-webkit-slider-thumb{-webkit-appearance:none;width:10px;height:10px;border-radius:50%;background:rgba(255,200,120,.2);cursor:pointer}
+  .ctrl-btn{background:rgba(255,200,120,.02);border:1px solid rgba(255,200,120,.08);color:rgba(255,200,120,.2);font-size:9px;letter-spacing:2px;padding:5px 12px;border-radius:14px;cursor:pointer;transition:all .3s;text-transform:uppercase}
+  .ctrl-btn:hover{background:rgba(255,200,120,.05);color:rgba(255,200,120,.4)}
+</style>
+</head>
+<body>
+
+<div id="intro">
+  <h1>mycelium</h1>
+  <div class="sub">
+    Beneath every forest, a network older than the internet.<br>
+    Fungal threads connecting every tree. No brain. No plan.<br>
+    Just growth — and the emergence of intelligence.
+  </div>
+  <div class="sub2">"The mycelium is the neurological network of nature." — Paul Stamets</div>
+  <button onclick="start()">enter the soil</button>
+</div>
+
+<canvas id="bg"></canvas>
+<canvas id="main"></canvas>
+<canvas id="fx"></canvas>
+
+<div class="info" id="info">
+  <div class="info-title">mycelium</div>
+  <div class="info-stats" id="stats">hyphae 0 · nodes 0 · links 0</div>
+  <div class="info-hint">click to plant a tree · shift+click to drop a spore</div>
+</div>
+
+<div id="controls">
+  <div class="ctrl-row">
+    <span class="ctrl-label">growth</span>
+    <input class="ctrl-slider" type="range" min="1" max="20" value="8" id="growthRate">
+  </div>
+  <div class="ctrl-row">
+    <span class="ctrl-label">branch</span>
+    <input class="ctrl-slider" type="range" min="1" max="30" value="12" id="branchRate">
+  </div>
+  <div class="ctrl-row">
+    <span class="ctrl-label">seek</span>
+    <input class="ctrl-slider" type="range" min="0" max="100" value="60" id="seekStrength">
+  </div>
+  <div class="ctrl-row">
+    <span class="ctrl-label">speed</span>
+    <input class="ctrl-slider" type="range" min="1" max="10" value="4" id="simSpeed">
+  </div>
+  <div class="ctrl-row" style="margin-top:4px;gap:6px">
+    <button class="ctrl-btn" onclick="addRandomTrees(5)">+ trees</button>
+    <button class="ctrl-btn" onclick="dropSpore()">+ spore</button>
+    <button class="ctrl-btn" onclick="resetSim()">reset</button>
+  </div>
+</div>
+
+<script>
+const bgC=document.getElementById('bg'),mainC=document.getElementById('main'),fxC=document.getElementById('fx');
+const bg=bgC.getContext('2d'),ctx=mainC.getContext('2d'),fx=fxC.getContext('2d');
+let W,H;
+
+function resize(){
+  W=innerWidth;H=innerHeight;
+  [bgC,mainC,fxC].forEach(c=>{c.width=W;c.height=H});
+  drawSoil();
+}
+
+// === SOIL BACKGROUND ===
+function drawSoil(){
+  // Deep earth gradient
+  const g=bg.createRadialGradient(W/2,H/2,0,W/2,H/2,Math.max(W,H)*.7);
+  g.addColorStop(0,'#0f0c08');
+  g.addColorStop(.5,'#0a0806');
+  g.addColorStop(1,'#060504');
+  bg.fillStyle=g;bg.fillRect(0,0,W,H);
+
+  // Soil texture - scattered tiny particles
+  for(let i=0;i<2000;i++){
+    const x=Math.random()*W,y=Math.random()*H;
+    const r=Math.random()*1.5+.3;
+    const a=Math.random()*.03+.01;
+    bg.fillStyle=`rgba(${60+Math.random()*40},${40+Math.random()*30},${20+Math.random()*20},${a})`;
+    bg.beginPath();bg.arc(x,y,r,0,Math.PI*2);bg.fill();
+  }
+
+  // Subtle moisture patches
+  for(let i=0;i<8;i++){
+    const x=Math.random()*W,y=Math.random()*H;
+    const r=Math.random()*150+50;
+    const mg=bg.createRadialGradient(x,y,0,x,y,r);
+    mg.addColorStop(0,`rgba(40,50,30,${Math.random()*.015+.005})`);
+    mg.addColorStop(1,'transparent');
+    bg.fillStyle=mg;bg.fillRect(0,0,W,H);
+  }
+}
+
+// === DATA STRUCTURES ===
+let trees=[];      // resource nodes (trees/plants)
+let spores=[];     // growth origins
+let hyphae=[];     // individual hypha segments
+let tips=[];       // active growing tips
+let links=[];      // established tree-to-tree connections
+let nutrients=[];  // flowing nutrient packets
+let particles=[];  // visual particles
+let time=0;
+let running=false;
+
+// Parameters
+let growthRate=8;
+let branchChance=0.012;
+let seekStrength=0.6;
+let simSpeed=4;
+
+class Tree{
+  constructor(x,y){
+    this.x=x;this.y=y;
+    this.radius=12+Math.random()*8;
+    this.nutrients=50+Math.random()*50;
+    this.connected=false;
+    this.connections=0;
+    this.health=1;
+    this.pulse=Math.random()*Math.PI*2;
+    // Root visual
+    this.roots=[];
+    const rootCount=4+Math.floor(Math.random()*4);
+    for(let i=0;i<rootCount;i++){
+      const a=Math.PI*2*i/rootCount+Math.random()*.5-.25;
+      const len=this.radius*1.5+Math.random()*15;
+      this.roots.push({a,len,w:1+Math.random()*1.5});
+    }
+  }
+}
+
+class Tip{
+  constructor(x,y,angle,energy,parent){
+    this.x=x;this.y=y;
+    this.angle=angle;
+    this.energy=energy;
+    this.speed=.8+Math.random()*.4;
+    this.age=0;
+    this.parent=parent; // index in hyphae where this tip writes
+    this.connectedTree=null;
+    this.alive=true;
+    this.lastBranch=0;
+  }
+}
+
+// === SIMULATION ===
+function addTree(x,y){
+  trees.push(new Tree(x,y));
+}
+
+function addRandomTrees(n){
+  for(let i=0;i<n;i++){
+    addTree(80+Math.random()*(W-160),80+Math.random()*(H-160));
+  }
+}
+
+function dropSpore(x,y){
+  if(!x)x=W/2+Math.random()*200-100;
+  if(!y)y=H/2+Math.random()*200-100;
+  spores.push({x,y});
+  // Create initial tips radiating outward
+  const count=6+Math.floor(Math.random()*6);
+  for(let i=0;i<count;i++){
+    const a=Math.PI*2*i/count+(Math.random()-.5)*.3;
+    const tipIdx=hyphae.length;
+    hyphae.push({segments:[{x,y}],thickness:2,age:0,connected:false});
+    tips.push(new Tip(x,y,a,200+Math.random()*100,tipIdx));
+  }
+  // Burst particles
+  for(let i=0;i<20;i++){
+    const a=Math.random()*Math.PI*2;
+    particles.push({x,y,vx:Math.cos(a)*30+Math.random()*10,vy:Math.sin(a)*30+Math.random()*10,life:1,r:Math.random()*2+.5,type:'spore'});
+  }
+}
+
+function findNearestTree(x,y,maxDist){
+  let best=null,bestD=maxDist||Infinity;
+  for(const t of trees){
+    const d=Math.sqrt((t.x-x)**2+(t.y-y)**2);
+    if(d<bestD){bestD=d;best=t}
+  }
+  return best?{tree:best,dist:bestD}:null;
+}
+
+function growTips(){
+  const dt=1;
+
+  for(const tip of tips){
+    if(!tip.alive)continue;
+    tip.age++;
+    tip.energy-=.3;
+
+    if(tip.energy<=0){tip.alive=false;continue}
+    if(tip.x<5||tip.x>W-5||tip.y<5||tip.y>H-5){tip.alive=false;continue}
+
+    // Seek nearest tree (chemotaxis)
+    const nearest=findNearestTree(tip.x,tip.y,300);
+    if(nearest&&nearest.dist>nearest.tree.radius){
+      const dx=nearest.tree.x-tip.x;
+      const dy=nearest.tree.y-tip.y;
+      const targetAngle=Math.atan2(dy,dx);
+      let diff=targetAngle-tip.angle;
+      while(diff>Math.PI)diff-=Math.PI*2;
+      while(diff<-Math.PI)diff+=Math.PI*2;
+      tip.angle+=diff*seekStrength*.05;
+    }
+
+    // Random wandering
+    tip.angle+=(Math.random()-.5)*.4;
+
+    // Grow
+    const step=tip.speed*growthRate*.15;
+    tip.x+=Math.cos(tip.angle)*step;
+    tip.y+=Math.sin(tip.angle)*step;
+
+    // Record segment
+    const hypha=hyphae[tip.parent];
+    if(hypha)hypha.segments.push({x:tip.x,y:tip.y});
+
+    // Check tree connection
+    if(nearest&&nearest.dist<nearest.tree.radius+5){
+      tip.connectedTree=nearest.tree;
+      nearest.tree.connected=true;
+      nearest.tree.connections++;
+      tip.alive=false;
+      hypha.connected=true;
+
+      // Check if this creates a tree-to-tree link
+      // Find other hyphae connected to different trees
+      for(const otherHypha of hyphae){
+        if(otherHypha===hypha||!otherHypha.connected)continue;
+        // Find what tree the other one is connected to
+        for(const otherTip of tips){
+          if(otherTip.parent===hyphae.indexOf(otherHypha)&&otherTip.connectedTree&&otherTip.connectedTree!==nearest.tree){
+            // New link!
+            const exists=links.some(l=>(l.a===nearest.tree&&l.b===otherTip.connectedTree)||(l.b===nearest.tree&&l.a===otherTip.connectedTree));
+            if(!exists){
+              links.push({a:nearest.tree,b:otherTip.connectedTree,strength:0,age:0});
+            }
+          }
+        }
+      }
+
+      // Connection burst
+      for(let i=0;i<15;i++){
+        const a=Math.random()*Math.PI*2;
+        particles.push({x:tip.x,y:tip.y,vx:Math.cos(a)*20,vy:Math.sin(a)*20,life:1,r:Math.random()*2+1,type:'connect'});
+      }
+      tip.energy=0;
+      continue;
+    }
+
+    // Branching
+    if(tip.age-tip.lastBranch>20&&Math.random()<branchChance&&tip.energy>40){
+      tip.lastBranch=tip.age;
+      const branchAngle=tip.angle+(Math.random()>.5?1:-1)*(Math.PI*.2+Math.random()*.4);
+      const newIdx=hyphae.length;
+      hyphae.push({segments:[{x:tip.x,y:tip.y}],thickness:Math.max(.5,hypha.thickness*.7),age:0,connected:false});
+      tips.push(new Tip(tip.x,tip.y,branchAngle,tip.energy*.5,newIdx));
+      tip.energy*=.7;
+    }
+
+    // Occasional growth particle
+    if(Math.random()<.05){
+      particles.push({x:tip.x,y:tip.y,vx:(Math.random()-.5)*8,vy:(Math.random()-.5)*8,life:1,r:Math.random()+.5,type:'grow'});
+    }
+  }
+}
+
+function flowNutrients(){
+  // Send nutrients along established links
+  for(const link of links){
+    link.age++;
+    link.strength=Math.min(1,link.strength+.005);
+
+    // Periodically send nutrient packet
+    if(link.age%60===0&&Math.random()<.5){
+      const from=link.a.nutrients>link.b.nutrients?link.a:link.b;
+      const to=from===link.a?link.b:link.a;
+      if(from.nutrients>20){
+        from.nutrients-=5;
+        nutrients.push({
+          from,to,t:0,speed:.008+Math.random()*.005,
+          amount:5
+        });
+      }
+    }
+  }
+
+  // Update nutrient packets
+  for(let i=nutrients.length-1;i>=0;i--){
+    const n=nutrients[i];
+    n.t+=n.speed;
+    if(n.t>=1){
+      n.to.nutrients+=n.amount;
+      n.to.health=Math.min(1,n.to.health+.05);
+      nutrients.splice(i,1);
+      // Arrival particle
+      for(let j=0;j<5;j++){
+        const a=Math.random()*Math.PI*2;
+        particles.push({x:n.to.x,y:n.to.y,vx:Math.cos(a)*15,vy:Math.sin(a)*15,life:1,r:Math.random()*1.5+.5,type:'nutrient'});
+      }
+    }
+  }
+
+  // Trees slowly consume nutrients
+  for(const t of trees){
+    t.nutrients=Math.max(0,t.nutrients-.02);
+    t.health=Math.max(.3,Math.min(1,t.nutrients/50));
+    t.pulse+=.03;
+  }
+}
+
+function updateParticles(){
+  for(let i=particles.length-1;i>=0;i--){
+    const p=particles[i];
+    p.x+=p.vx*(1/60);p.y+=p.vy*(1/60);
+    p.vx*=.95;p.vy*=.95;
+    p.life-=.015;
+    if(p.life<=0)particles.splice(i,1);
+  }
+}
+
+// === RENDERING ===
+function render(){
+  ctx.clearRect(0,0,W,H);
+  fx.clearRect(0,0,W,H);
+
+  // Draw hyphae network
+  for(const hypha of hyphae){
+    const segs=hypha.segments;
+    if(segs.length<2)continue;
+
+    const connected=hypha.connected;
+    const baseAlpha=connected?.15:.08;
+    const thickness=hypha.thickness||1;
+
+    ctx.strokeStyle=connected?
+      `rgba(200,180,120,${baseAlpha})`:
+      `rgba(180,160,100,${baseAlpha})`;
+    ctx.lineWidth=thickness;
+    ctx.lineCap='round';
+    ctx.lineJoin='round';
+
+    ctx.beginPath();
+    ctx.moveTo(segs[0].x,segs[0].y);
+    for(let i=1;i<segs.length;i++){
+      ctx.lineTo(segs[i].x,segs[i].y);
+    }
+    ctx.stroke();
+
+    // Subtle glow for connected hyphae
+    if(connected){
+      ctx.strokeStyle=`rgba(255,220,140,.02)`;
+      ctx.lineWidth=thickness+3;
+      ctx.beginPath();
+      ctx.moveTo(segs[0].x,segs[0].y);
+      for(let i=1;i<segs.length;i++){
+        ctx.lineTo(segs[i].x,segs[i].y);
+      }
+      ctx.stroke();
+    }
+  }
+
+  // Draw growing tips
+  for(const tip of tips){
+    if(!tip.alive)continue;
+    const glow=fx.createRadialGradient(tip.x,tip.y,0,tip.x,tip.y,6);
+    glow.addColorStop(0,'rgba(255,230,150,.3)');
+    glow.addColorStop(1,'transparent');
+    fx.fillStyle=glow;
+    fx.beginPath();fx.arc(tip.x,tip.y,6,0,Math.PI*2);fx.fill();
+
+    fx.fillStyle='rgba(255,240,180,.6)';
+    fx.beginPath();fx.arc(tip.x,tip.y,1.5,0,Math.PI*2);fx.fill();
+  }
+
+  // Draw links (tree-to-tree connections)
+  for(const link of links){
+    const alpha=link.strength*.08;
+    ctx.strokeStyle=`rgba(255,220,100,${alpha})`;
+    ctx.lineWidth=1+link.strength*2;
+    ctx.setLineDash([4,8]);
+    ctx.beginPath();
+    ctx.moveTo(link.a.x,link.a.y);
+    ctx.lineTo(link.b.x,link.b.y);
+    ctx.stroke();
+    ctx.setLineDash([]);
+  }
+
+  // Draw nutrient flows
+  for(const n of nutrients){
+    const x=n.from.x+(n.to.x-n.from.x)*n.t;
+    const y=n.from.y+(n.to.y-n.from.y)*n.t;
+
+    const glow=fx.createRadialGradient(x,y,0,x,y,8);
+    glow.addColorStop(0,'rgba(100,255,150,.4)');
+    glow.addColorStop(.5,'rgba(100,255,150,.1)');
+    glow.addColorStop(1,'transparent');
+    fx.fillStyle=glow;
+    fx.beginPath();fx.arc(x,y,8,0,Math.PI*2);fx.fill();
+
+    fx.fillStyle='rgba(150,255,180,.7)';
+    fx.beginPath();fx.arc(x,y,2,0,Math.PI*2);fx.fill();
+  }
+
+  // Draw trees
+  for(const t of trees){
+    const pulse=Math.sin(t.pulse)*.15+.85;
+
+    // Root system
+    ctx.strokeStyle=`rgba(80,60,30,${.08*t.health})`;
+    ctx.lineWidth=1;
+    for(const root of t.roots){
+      ctx.beginPath();
+      ctx.moveTo(t.x,t.y);
+      const rx=t.x+Math.cos(root.a)*root.len;
+      const ry=t.y+Math.sin(root.a)*root.len;
+      // Curved root
+      const cx=t.x+Math.cos(root.a)*root.len*.5+(Math.random()-.5)*10;
+      const cy=t.y+Math.sin(root.a)*root.len*.5+(Math.random()-.5)*10;
+      ctx.quadraticCurveTo(cx,cy,rx,ry);
+      ctx.lineWidth=root.w*t.health;
+      ctx.stroke();
+    }
+
+    // Underground nutrient zone glow
+    const zoneR=t.radius*2+t.connections*3;
+    const zone=ctx.createRadialGradient(t.x,t.y,t.radius*.5,t.x,t.y,zoneR);
+    const hue=t.connected?'80,150,60':'60,80,40';
+    zone.addColorStop(0,`rgba(${hue},${.04*t.health*pulse})`);
+    zone.addColorStop(1,'transparent');
+    ctx.fillStyle=zone;
+    ctx.beginPath();ctx.arc(t.x,t.y,zoneR,0,Math.PI*2);ctx.fill();
+
+    // Tree core
+    const coreColor=t.connected?
+      `rgba(${60+t.connections*15},${100+t.connections*20},${40+t.connections*10},${.4*t.health*pulse})`:
+      `rgba(60,70,40,${.25*t.health})`;
+    ctx.fillStyle=coreColor;
+    ctx.beginPath();ctx.arc(t.x,t.y,t.radius*t.health,0,Math.PI*2);ctx.fill();
+
+    // Inner ring
+    ctx.strokeStyle=t.connected?
+      `rgba(100,180,60,${.2*t.health*pulse})`:
+      `rgba(80,90,50,${.1*t.health})`;
+    ctx.lineWidth=1.5;
+    ctx.beginPath();ctx.arc(t.x,t.y,t.radius*.6*t.health,0,Math.PI*2);ctx.stroke();
+
+    // Connection count indicator
+    if(t.connections>0){
+      ctx.fillStyle=`rgba(150,255,100,${.08*pulse})`;
+      ctx.font='8px Inter';
+      ctx.textAlign='center';
+      ctx.fillText(t.connections,t.x,t.y-t.radius-6);
+    }
+  }
+
+  // Draw spore origins
+  for(const s of spores){
+    const age=Math.min(time*.01,1);
+    ctx.fillStyle=`rgba(255,220,100,${.06*(1-age*.5)})`;
+    ctx.beginPath();ctx.arc(s.x,s.y,4,0,Math.PI*2);ctx.fill();
+  }
+
+  // Draw particles
+  for(const p of particles){
+    const alpha=p.life;
+    if(p.type==='spore')fx.fillStyle=`rgba(255,220,100,${alpha*.4})`;
+    else if(p.type==='connect')fx.fillStyle=`rgba(100,255,150,${alpha*.5})`;
+    else if(p.type==='nutrient')fx.fillStyle=`rgba(150,255,180,${alpha*.4})`;
+    else fx.fillStyle=`rgba(200,180,120,${alpha*.3})`;
+    fx.beginPath();fx.arc(p.x,p.y,p.r*alpha,0,Math.PI*2);fx.fill();
+  }
+}
+
+// === INPUT ===
+mainC.addEventListener('click',e=>{
+  if(!running)return;
+  const x=e.clientX,y=e.clientY;
+  if(e.shiftKey){
+    dropSpore(x,y);
+  }else{
+    addTree(x,y);
+    // If there are active tips, they'll find it
+    // Also add some attraction particles
+    for(let i=0;i<8;i++){
+      const a=Math.random()*Math.PI*2;
+      particles.push({x,y,vx:Math.cos(a)*25,vy:Math.sin(a)*25,life:1,r:Math.random()*2+1,type:'nutrient'});
+    }
+  }
+});
+
+// Sliders
+document.getElementById('growthRate').addEventListener('input',e=>{growthRate=parseInt(e.target.value)});
+document.getElementById('branchRate').addEventListener('input',e=>{branchChance=e.target.value/1000});
+document.getElementById('seekStrength').addEventListener('input',e=>{seekStrength=e.target.value/100});
+document.getElementById('simSpeed').addEventListener('input',e=>{simSpeed=parseInt(e.target.value)});
+
+function resetSim(){
+  trees=[];spores=[];hyphae=[];tips=[];links=[];nutrients=[];particles=[];time=0;
+  drawSoil();
+  initScene();
+}
+
+// === INIT ===
+function initScene(){
+  // Place trees in a natural-looking scatter
+  const treeCount=8+Math.floor(Math.random()*5);
+  for(let i=0;i<treeCount;i++){
+    const margin=100;
+    const x=margin+Math.random()*(W-margin*2);
+    const y=margin+Math.random()*(H-margin*2);
+    // Don't place too close to existing trees
+    let tooClose=false;
+    for(const t of trees){
+      if(Math.sqrt((t.x-x)**2+(t.y-y)**2)<80){tooClose=true;break}
+    }
+    if(!tooClose)addTree(x,y);
+  }
+
+  // Drop initial spores
+  setTimeout(()=>{
+    dropSpore(W*.3+Math.random()*50,H*.4+Math.random()*50);
+    dropSpore(W*.6+Math.random()*50,H*.6+Math.random()*50);
+  },500);
+
+  setTimeout(()=>{
+    dropSpore(W*.5+Math.random()*50,H*.3+Math.random()*50);
+  },2000);
+}
+
+// === MAIN LOOP ===
+function tick(){
+  if(!running){requestAnimationFrame(tick);return}
+  time++;
+
+  for(let i=0;i<simSpeed;i++){
+    growTips();
+    flowNutrients();
+  }
+  updateParticles();
+
+  // Update stats
+  if(time%15===0){
+    const activeTips=tips.filter(t=>t.alive).length;
+    const totalSegs=hyphae.reduce((s,h)=>s+h.segments.length,0);
+    document.getElementById('stats').textContent=
+      `hyphae ${totalSegs} · nodes ${trees.length} · links ${links.length} · tips ${activeTips}`;
+  }
+
+  render();
+  requestAnimationFrame(tick);
+}
+
+function start(){
+  document.getElementById('intro').classList.add('hide');
+  document.getElementById('info').style.display='block';
+  document.getElementById('controls').style.display='flex';
+  running=true;
+  initScene();
+}
+
+addEventListener('resize',()=>{resize();drawSoil()});
+resize();
+requestAnimationFrame(tick);
+</script>
+</body>
+</html>
